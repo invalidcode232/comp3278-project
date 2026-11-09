@@ -1,139 +1,108 @@
-# ER diagram
+# ER diagram (Chen notation)
 
-All 12 tables in `db/schema.sql`. GitHub, VS Code (with a Mermaid extension) and <https://mermaid.live> render the diagram below.
+![ER diagram of the COMP3278 social app in Chen notation](er-diagram.svg)
 
-```mermaid
-erDiagram
-    users {
-        CHAR(36) id PK "UUID, internal"
-        VARCHAR(30) handle UK "public, changeable"
-        VARCHAR(255) email UK
-        CHAR(60) password_hash "bcrypt"
-        VARCHAR(50) display_name
-        TEXT bio "NULL"
-        BIGINT avatar_image_id FK "NULL -> images.id"
-        DATETIME created_at
-    }
-    sessions {
-        CHAR(64) token PK
-        CHAR(36) user_id FK
-        DATETIME expires_at
-    }
-    images {
-        BIGINT id PK
-        CHAR(64) sha256 UK "dedup key"
-        VARCHAR(32) mime_type
-        INT byte_size
-        LONGBLOB data
-        DATETIME created_at
-    }
-    topics {
-        INT id PK
-        VARCHAR(50) name UK
-        VARCHAR(255) description
-    }
-    threads {
-        BIGINT id PK
-        CHAR(36) author_id FK
-        INT topic_id FK "NOT NULL"
-        TEXT body "NULL"
-        BIGINT image_id FK "NULL"
-        DATETIME created_at
-        DATETIME updated_at
-    }
-    comments {
-        BIGINT id PK
-        BIGINT thread_id FK
-        CHAR(36) author_id FK
-        TEXT body "NULL"
-        BIGINT image_id FK "NULL"
-        DATETIME created_at
-        DATETIME updated_at
-    }
-    thread_likes {
-        CHAR(36) user_id PK, FK
-        BIGINT thread_id PK, FK
-    }
-    comment_likes {
-        CHAR(36) user_id PK, FK
-        BIGINT comment_id PK, FK
-    }
-    follows {
-        CHAR(36) follower_id PK, FK
-        CHAR(36) followee_id PK, FK
-    }
-    collections {
-        BIGINT id PK
-        CHAR(36) owner_id FK
-        VARCHAR(50) name "UNIQUE with owner_id"
-        DATETIME created_at
-    }
-    collection_threads {
-        BIGINT collection_id PK, FK
-        BIGINT thread_id PK, FK
-        DATETIME saved_at
-    }
-    messages {
-        BIGINT id PK
-        CHAR(36) sender_id FK
-        CHAR(36) recipient_id FK
-        TEXT body "NULL"
-        BIGINT image_id FK "NULL"
-        DATETIME created_at
-    }
+| File | What it is |
+|---|---|
+| [`er-diagram.svg`](er-diagram.svg) | The diagram (vector; scales to any size). |
+| [`er-diagram.png`](er-diagram.png) | The same diagram as a PNG, for slides. |
+| [`er-diagram.dot`](er-diagram.dot) | Graphviz source. Regenerate with `dot -Kneato -Tsvg docs/er-diagram.dot -o docs/er-diagram.svg`, or paste it into <https://dreampuf.github.io/GraphvizOnline> with engine **neato**. |
 
-    users ||--o{ sessions : "has"
-    images |o--o{ users : "is avatar of"
-    users ||--o{ threads : "writes"
-    topics ||--o{ threads : "groups"
-    images |o--o{ threads : "attached to"
-    threads ||--o{ comments : "has"
-    users ||--o{ comments : "writes"
-    images |o--o{ comments : "attached to"
-    users ||--o{ thread_likes : "gives"
-    threads ||--o{ thread_likes : "receives"
-    users ||--o{ comment_likes : "gives"
-    comments ||--o{ comment_likes : "receives"
-    users ||--o{ follows : "follower"
-    users ||--o{ follows : "followee"
-    users ||--o{ collections : "owns"
-    collections ||--o{ collection_threads : "contains"
-    threads ||--o{ collection_threads : "saved in"
-    users ||--o{ messages : "sends"
-    users ||--o{ messages : "receives"
-    images |o--o{ messages : "attached to"
-```
+## Notation
 
-Notation: `||` exactly one, `|o` zero or one, `o{` zero or more.
+| Symbol | Meaning |
+|---|---|
+| Rectangle | **Entity set** |
+| Diamond | **Relationship set** |
+| Ellipse | **Attribute**; an <u>underlined</u> name is the primary key |
+| Dashed ellipse | **Derived attribute**: computed by a query every time, not stored (for example `follower_count` is a `COUNT(*)` over `follows`) |
+| Directed line (arrow from the diamond to an entity) | **Mapping cardinality "one"**: each relationship instance involves at most one entity of that set |
+| Undirected line | **Mapping cardinality "many"**. Plain lines on both sides make a many-to-many relationship. |
+| Double line | **Total participation**: every entity on that side must take part in the relationship. In the schema this is a `NOT NULL` foreign key. |
+| Single line | **Partial participation**: taking part is optional |
+| Word on a line | **Role** name, used on the recursive FOLLOWS (`follower`, `followee`) |
 
-## Relationships
+How to read an arrow: WRITES has an arrow to USER and a plain double line to THREAD. So each thread is written by **one** user, a user can write **many** threads, and every thread must have a writer (total participation).
 
-### One-to-many (1–N)
+The model has no weak entity sets: every entity has its own primary key. It also has no multi-valued attributes and no ISA specialization.
 
-| Parent → child | Meaning | ON DELETE |
-|---|---|---|
-| users → sessions | One user can be logged in on many browsers; each session belongs to one user. | CASCADE: deleting a user logs them out everywhere. |
-| users → threads (`author_id`) | A user writes many threads; each thread has exactly one author. | CASCADE |
-| topics → threads (`topic_id`, NOT NULL) | A topic groups many threads; each thread is in exactly one topic, chosen when it is created. | RESTRICT: a topic that still has threads cannot be deleted. |
-| threads → comments | A thread has many comments; each comment belongs to one thread. | CASCADE: deleting a thread deletes its comments. |
-| users → comments (`author_id`) | A user writes many comments. | CASCADE |
-| users → collections (`owner_id`) | A user owns many collections. Names are unique per owner: `UNIQUE(owner_id, name)`. | CASCADE |
-| users → messages (`sender_id`, `recipient_id`) | Two separate 1–N relationships: a user sends many messages and receives many messages. A conversation is the set of rows between two users, in either direction. | CASCADE on both: a deleted user's conversations disappear. |
-| images → users / threads / comments / messages | An image row can be referenced by many rows: uploads are deduplicated by SHA-256, so identical files share one row. Each referencing row has zero or one image (the column is nullable). | Avatar: SET NULL. Threads, comments, messages: RESTRICT. |
+Foreign-key columns (`author_id`, `topic_id`, `owner_id`, …) are not drawn as attributes. In Chen notation the relationship diamonds stand for them, and the [mapping to tables](#from-the-er-diagram-to-the-tables) below shows where each one ends up.
 
-The content tables have `CHECK (body IS NOT NULL OR image_id IS NOT NULL)`. MySQL does not allow `ON DELETE SET NULL` on a column used in a CHECK (error 3823), and SET NULL could break the rule anyway. The app never deletes image rows, so RESTRICT is the right choice.
+## Entity sets
 
-### Many-to-many (M–N) through junction tables
-
-| Junction table | Connects | Composite primary key | Notes |
+| Entity | Primary key | Attributes | Derived attributes |
 |---|---|---|---|
-| `thread_likes` | users ↔ threads | (user_id, thread_id) | A user likes many threads, and a thread is liked by many users. The PK stops anyone liking a thread twice, which is what makes the `INSERT IGNORE` toggle work. |
-| `comment_likes` | users ↔ comments | (user_id, comment_id) | Same as above, for comments. |
-| `follows` | users ↔ users (self-referencing) | (follower_id, followee_id) | A user follows many users and is followed by many. `CHECK (follower_id <> followee_id)` blocks following yourself. Follower and following counts are `COUNT(*)` queries, never stored. |
-| `collection_threads` | collections ↔ threads | (collection_id, thread_id) | A collection holds many threads, and a thread can be saved in many collections. It has one extra attribute, `saved_at`. |
+| USER | `id` (UUID) | handle, email, password_hash, display_name, bio, created_at | follower_count, following_count |
+| SESSION | `token` | expires_at | |
+| TOPIC | `id` | name, description | |
+| THREAD | `id` | body, created_at, updated_at | like_count, comment_count |
+| COMMENT | `id` | body, created_at, updated_at | like_count |
+| COLLECTION | `id` | name, created_at | |
+| MESSAGE | `id` | body, created_at | |
+| IMAGE | `id` | sha256, mime_type, byte_size, data, created_at | |
 
-Every junction table cascades from both sides: a like, follow or saved entry disappears with either of the rows it connects. Each table has a second index that starts with the other column (for example `thread_likes(thread_id)`), so lookups from either side, such as counting the likes on a thread, use an index.
+`handle`, `email` and `sha256` are candidate keys: they have UNIQUE constraints but are not the primary key. `handle` is kept separate from `id` so it can change without touching any foreign key.
 
-### Identity: `id` vs `handle`
+## Relationship sets
 
-`users.id` is a UUID that never changes, and every foreign key points to it. `handle` is the public name used in URLs (`/u/alice`) and can be edited. Renaming a handle is a single-row UPDATE: no foreign key changes, and old threads still belong to the same user.
+| Relationship | Between | Mapping cardinality | Arrow points to | Participation | Meaning |
+|---|---|---|---|---|---|
+| HAS | USER – SESSION | one-to-many | USER | SESSION total | A user can be logged in on many browsers; every session belongs to one user. |
+| WRITES | USER – THREAD | one-to-many | USER | THREAD total | Every thread has exactly one author. |
+| BELONGS_TO | TOPIC – THREAD | one-to-many | TOPIC | THREAD total | Every thread is in exactly one topic, chosen when it is created. |
+| ON | THREAD – COMMENT | one-to-many | THREAD | COMMENT total | Every comment is on exactly one thread. |
+| POSTS | USER – COMMENT | one-to-many | USER | COMMENT total | Every comment has exactly one author. |
+| OWNS | USER – COLLECTION | one-to-many | USER | COLLECTION total | Every collection has one owner. |
+| SENDS | USER – MESSAGE | one-to-many | USER | MESSAGE total | Every message has one sender… |
+| RECEIVES | USER – MESSAGE | one-to-many | USER | MESSAGE total | …and one recipient. Two separate relationships between the same pair of entity sets. |
+| LIKES | USER – THREAD | many-to-many | (none) | both partial | A user likes many threads; a thread is liked by many users. |
+| LIKES | USER – COMMENT | many-to-many | (none) | both partial | The same, for comments. |
+| FOLLOWS | USER – USER | many-to-many | (none) | both partial | **Recursive** relationship with two roles written on its lines: *follower* and *followee*. |
+| SAVED_IN | COLLECTION – THREAD | many-to-many | (none) | both partial | A collection holds many threads, and a thread can be in many collections. Has its own attribute, **saved_at**. |
+| AVATAR | IMAGE – USER | one-to-many | IMAGE | both partial | A user has at most one avatar. Because uploads are deduplicated, one image can be the avatar of many users. |
+| HAS_IMAGE | IMAGE – THREAD | one-to-many | IMAGE | both partial | A thread has at most one image; one image can be shared by many threads. |
+| HAS_IMAGE | IMAGE – COMMENT | one-to-many | IMAGE | both partial | The same, for comments. |
+| HAS_IMAGE | IMAGE – MESSAGE | one-to-many | IMAGE | both partial | The same, for messages. |
+
+## From the ER diagram to the tables
+
+The schema in [`db/schema.sql`](../db/schema.sql) follows the standard ER-to-relational mapping:
+
+1. **Each entity set becomes a table** with its simple attributes as columns and its key as the primary key: `users`, `sessions`, `topics`, `threads`, `comments`, `collections`, `messages`, `images`.
+2. **Each one-to-many relationship becomes a foreign key on the "many" side**, which is the side without the arrow. The key points at the entity the arrow points to. No extra table is needed:
+
+   | Relationship | Foreign key column | NULL? |
+   |---|---|---|
+   | HAS | `sessions.user_id → users.id` | NOT NULL (total) |
+   | WRITES | `threads.author_id → users.id` | NOT NULL (total) |
+   | BELONGS_TO | `threads.topic_id → topics.id` | NOT NULL (total) |
+   | ON | `comments.thread_id → threads.id` | NOT NULL (total) |
+   | POSTS | `comments.author_id → users.id` | NOT NULL (total) |
+   | OWNS | `collections.owner_id → users.id` | NOT NULL (total) |
+   | SENDS | `messages.sender_id → users.id` | NOT NULL (total) |
+   | RECEIVES | `messages.recipient_id → users.id` | NOT NULL (total) |
+   | AVATAR | `users.avatar_image_id → images.id` | NULL allowed (partial) |
+   | HAS_IMAGE ×3 | `threads.image_id`, `comments.image_id`, `messages.image_id → images.id` | NULL allowed (partial) |
+
+   This is where the double lines show up in the schema: total participation means the foreign key is `NOT NULL`.
+3. **Each many-to-many relationship (no arrows) becomes its own junction table.** The table holds the two foreign keys, which together form a composite primary key, plus any attributes of the relationship:
+
+   | Relationship | Junction table | Composite primary key | Extra column |
+   |---|---|---|---|
+   | LIKES (thread) | `thread_likes` | (user_id, thread_id) | |
+   | LIKES (comment) | `comment_likes` | (user_id, comment_id) | |
+   | FOLLOWS | `follows` | (follower_id, followee_id), named after the two roles | |
+   | SAVED_IN | `collection_threads` | (collection_id, thread_id) | `saved_at` |
+
+   The composite key enforces the "at most one" rule for each pair: a user can't like the same thread twice, and that is what makes the `INSERT IGNORE` like toggle work ([key-sql.md §4](key-sql.md#4-like-toggle-insert-ignore-then-delete)).
+4. **Derived attributes are not columns.** `follower_count`, `following_count`, `like_count` and `comment_count` are `COUNT(*)` subqueries ([key-sql.md §1 and §3](key-sql.md)), so they can never drift out of sync with the data.
+
+### Constraints the diagram cannot show
+
+Chen notation has no symbol for these rules, so they are enforced in `db/schema.sql`:
+
+- **THREAD, COMMENT and MESSAGE need text or an image:** `CHECK (body IS NOT NULL OR image_id IS NOT NULL)`.
+- **No following yourself:** `CHECK (follower_id <> followee_id)` on `follows`.
+- **Collection names are unique per owner:** `UNIQUE (owner_id, name)`.
+- **Handles must be 3–30 letters, digits or underscores**, checked with `REGEXP_LIKE`. Handle and email are unique, ignoring case.
+- **Delete behaviour.** Deleting a user cascades to everything that depends on them. A topic that still has threads cannot be deleted (RESTRICT). An image that is still referenced cannot be deleted (RESTRICT). The comments in `schema.sql` explain each choice.

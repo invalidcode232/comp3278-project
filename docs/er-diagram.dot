@@ -1,0 +1,175 @@
+// Chen-notation ER diagram for the COMP3278 social app.
+//
+// Render to SVG with Graphviz (neato engine, because every node position is pinned):
+//   dot -Kneato -Tsvg docs/er-diagram.dot -o docs/er-diagram.svg
+// or paste this file into https://dreampuf.github.io/GraphvizOnline and pick engine "neato".
+//
+// Notation
+//   rectangle       entity set
+//   diamond         relationship set
+//   ellipse         attribute: underlined = primary key, dashed = derived (computed by a query, not stored)
+//   arrow           mapping cardinality "one": directed line from the relationship to the entity on the one side
+//   plain line      mapping cardinality "many": undirected line (both sides plain = many-to-many)
+//   double line     total participation: every entity on that side must take part (NOT NULL foreign key)
+//   single line     partial participation
+//   role name       written on the line (follower / followee on the recursive FOLLOWS)
+// Foreign-key columns (author_id, topic_id, ...) are not drawn as attributes: in Chen notation the
+// relationship diamonds represent them. Positions are in inches (pos="x,y!" pins a node).
+
+graph ER {
+  graph [layout=neato, splines=true, outputorder=edgesfirst, pad=0.3, bgcolor=white,
+         fontname="Helvetica", fontsize=20, labelloc=t,
+         label="COMP3278 Social: ER diagram (Chen notation)"];
+  node  [fontname="Helvetica"];
+  edge  [fontname="Helvetica", fontsize=15, penwidth=1.2];
+
+  // ---------------------------------------------------------------- entity sets
+  node [shape=box, style="filled", fillcolor="#e8eefc", penwidth=2, width=1.6, height=0.65, fontsize=16];
+  USER        [pos="0,0!"];
+  SESSION     [pos="-7.1,-4.1!"];
+  MESSAGE     [pos="-5.16,-7.37!"];
+  IMAGE       [pos="1.39,-9.9!"];
+  COMMENT     [pos="7.49,-5.85!"];
+  THREAD      [pos="9.5,0.8!"];
+  TOPIC       [pos="16.5,0.8!"];
+  COLLECTION  [pos="6.0,6.7!"];
+
+  // ---------------------------------------------------------------- relationship sets
+  node [shape=diamond, style=filled, fillcolor="#fdf0d5", penwidth=1.4, width=1.5, height=0.95, fontsize=13];
+  R_HAS       [label="HAS", pos="-3.61,-2.34!"];
+  R_FOLLOWS   [label="FOLLOWS", pos="1.6,4.4!", width=1.7];
+  R_OWNS      [label="OWNS", pos="3.25,3.25!"];
+  R_SAVED     [label="SAVED_IN", pos="7.75,3.75!", width=1.7];
+  R_WRITES    [label="WRITES", pos="4.6,1.6!"];
+  R_LIKES_T   [label="LIKES", pos="4.8,-0.3!"];
+  R_IN        [label="BELONGS_TO", pos="13.0,0.8!", width=1.9];
+  R_ON        [label="ON", pos="8.5,-2.5!"];
+  R_LIKES_C   [label="LIKES", pos="3.97,-2.11!"];
+  R_POSTS     [label="POSTS", pos="3.0,-3.34!"];
+  R_AVATAR    [label="AVATAR", pos="0.72,-5.15!"];
+  R_SENDS     [label="SENDS", pos="-2.64,-3.77!"];
+  R_RECEIVES  [label="RECEIVES", pos="-1.57,-4.32!", width=1.6];
+  R_M_IMG     [label="HAS_IMAGE", pos="-1.9,-8.6!", width=1.8];
+  R_C_IMG     [label="HAS_IMAGE", pos="4.44,-7.9!", width=1.8];
+  R_T_IMG     [label="HAS_IMAGE", pos="11.0,-10.5!", width=1.8];
+
+  // ---------------------------------------------------------------- attributes
+  node [shape=ellipse, style=filled, fillcolor=white, penwidth=1, width=0, height=0, margin="0.09,0.04", fontsize=13];
+  // USER
+  u_id         [label=<<u>id</u>>, pos="-0.1,3.0!"];
+  u_bio        [label="bio", pos="-0.8,2.89!"];
+  u_email      [label="email", pos="-1.45,2.62!"];
+  u_handle     [label="handle", pos="-2.03,2.21!"];
+  u_created    [label="created_at", pos="-2.49,1.68!"];
+  u_name       [label="display_name", pos="-2.81,1.05!"];
+  u_pw         [label="password_hash", pos="-2.98,0.37!"];
+  u_followers  [label="follower_count", style="filled,dashed", pos="-2.98,-0.34!"];
+  u_following  [label="following_count", style="filled,dashed", pos="-2.82,-1.03!"];
+  USER -- {u_id u_bio u_email u_handle u_created u_name u_pw u_followers u_following};
+  // SESSION
+  s_token      [label=<<u>token</u>>, pos="-7.9,-2.71!"];
+  s_expires    [label="expires_at", pos="-8.6,-4.65!"];
+  SESSION -- {s_token s_expires};
+  // MESSAGE
+  m_id         [label=<<u>id</u>>, pos="-6.76,-6.79!"];
+  m_body       [label="body", pos="-6.7,-8.09!"];
+  m_created    [label="created_at", pos="-5.74,-8.97!"];
+  MESSAGE -- {m_id m_body m_created};
+  // IMAGE
+  i_id         [label=<<u>id</u>>, pos="-0.8,-10.09!"];
+  i_sha        [label="sha256", pos="-0.9,-11.51!"];
+  i_mime       [label="mime_type", pos="0.46,-11.89!"];
+  i_size       [label="byte_size", pos="1.63,-12.69!"];
+  i_data       [label="data", pos="2.65,-11.7!"];
+  i_created    [label="created_at", pos="3.93,-11.08!"];
+  IMAGE -- {i_id i_sha i_mime i_size i_data i_created};
+  // COMMENT
+  cm_id        [label=<<u>id</u>>, pos="7.18,-4.08!"];
+  cm_body      [label="body", pos="6.01,-7.33!"];
+  cm_created   [label="created_at", pos="7.2,-7.93!"];
+  cm_updated   [label="updated_at", pos="8.51,-7.69!"];
+  cm_likes     [label="like_count", style="filled,dashed", pos="9.41,-6.7!"];
+  COMMENT -- {cm_id cm_body cm_created cm_updated cm_likes};
+  // THREAD
+  t_id         [label=<<u>id</u>>, pos="9.19,2.98!"];
+  t_body       [label="body", pos="10.07,2.93!"];
+  t_created    [label="created_at", pos="10.91,2.49!"];
+  t_updated    [label="updated_at", pos="11.49,1.73!"];
+  t_likes      [label="like_count", style="filled,dashed", pos="11.49,-0.13!"];
+  t_comments   [label="comment_count", style="filled,dashed", pos="10.76,-1.0!"];
+  THREAD -- {t_id t_body t_created t_updated t_likes t_comments};
+  // TOPIC
+  tp_id        [label=<<u>id</u>>, pos="17.4,2.36!"];
+  tp_name      [label="name", pos="18.3,0.8!"];
+  tp_desc      [label="description", pos="17.4,-0.76!"];
+  TOPIC -- {tp_id tp_name tp_desc};
+  // COLLECTION
+  c_id         [label=<<u>id</u>>, pos="4.53,7.55!"];
+  c_name       [label="name", pos="6.0,8.4!"];
+  c_created    [label="created_at", pos="7.47,7.55!"];
+  COLLECTION -- {c_id c_name c_created};
+  ct_saved     [label="saved_at", pos="9.8,4.4!"];   // attribute of the relationship itself
+  R_SAVED -- ct_saved;
+
+  // ---------------------------------------------------------------- entity -- relationship lines
+  R_HAS          -- USER           [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  SESSION        -- R_HAS          [dir=none, color="black:invis:black", penwidth=1];   // many
+  USER:n         -- R_FOLLOWS:w    [dir=none];   // many
+  USER:ne        -- R_FOLLOWS:s    [dir=none];   // many
+  R_OWNS         -- USER           [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  COLLECTION     -- R_OWNS         [dir=none, color="black:invis:black", penwidth=1];   // many
+  COLLECTION     -- R_SAVED        [dir=none];   // many
+  THREAD         -- R_SAVED        [dir=none];   // many
+  R_WRITES       -- USER           [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  THREAD         -- R_WRITES       [dir=none, color="black:invis:black", penwidth=1];   // many
+  USER           -- R_LIKES_T      [dir=none];   // many
+  THREAD         -- R_LIKES_T      [dir=none];   // many
+  R_IN           -- TOPIC          [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  THREAD         -- R_IN           [dir=none, color="black:invis:black", penwidth=1];   // many
+  R_ON           -- THREAD         [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  COMMENT        -- R_ON           [dir=none, color="black:invis:black", penwidth=1];   // many
+  R_POSTS        -- USER           [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  COMMENT        -- R_POSTS        [dir=none, color="black:invis:black", penwidth=1];   // many
+  USER           -- R_LIKES_C      [dir=none];   // many
+  COMMENT        -- R_LIKES_C      [dir=none];   // many
+  R_AVATAR       -- IMAGE          [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  USER           -- R_AVATAR       [dir=none];   // many
+  R_SENDS        -- USER           [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  MESSAGE        -- R_SENDS        [dir=none, color="black:invis:black", penwidth=1];   // many
+  R_RECEIVES     -- USER           [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  MESSAGE        -- R_RECEIVES     [dir=none, color="black:invis:black", penwidth=1];   // many
+  R_M_IMG        -- IMAGE          [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  MESSAGE        -- R_M_IMG        [dir=none];   // many
+  R_C_IMG        -- IMAGE          [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  COMMENT        -- R_C_IMG        [dir=none];   // many
+  R_T_IMG        -- IMAGE          [dir=forward, arrowhead=normal, arrowsize=1.2];   // one
+  THREAD         -- R_T_IMG        [dir=none];   // many
+
+  // FOLLOWS is recursive (USER to USER): one line per role, with the role name written on the line.
+  role_follower [shape=plaintext, style="", fontsize=14, label="follower", pos="0.08,3.9!"];
+  role_followee [shape=plaintext, style="", fontsize=14, label="followee", pos="1.85,2.6!"];
+
+  // ---------------------------------------------------------------- legend
+  node [fontsize=12];
+  lg_title [shape=plaintext, style="", label=<<b>Notation</b>>, pos="-7.4,7.3!", fontsize=15];
+  lg_e  [shape=box, style=filled, fillcolor="#e8eefc", penwidth=2, label="ENTITY", width=1.4, height=0.5, pos="-8.6,6.5!"];
+  lg_r  [shape=diamond, style=filled, fillcolor="#fdf0d5", label="RELATIONSHIP", width=1.9, height=0.8, pos="-6.2,6.5!"];
+  lg_k  [shape=ellipse, style=filled, fillcolor=white, label=<<u>primary key</u>>, pos="-8.6,5.55!"];
+  lg_a  [shape=ellipse, style=filled, fillcolor=white, label="attribute", pos="-6.2,5.55!"];
+  lg_d  [shape=ellipse, style="filled,dashed", fillcolor=white, label="derived (computed)", pos="-7.4,4.85!"];
+  node [shape=plaintext, style="", fontsize=12];
+  lg_o1 [shape=point, width=0.01, pos="-9.2,4.25!"]; lg_o2 [shape=point, width=0.01, pos="-8.0,4.25!"];
+  lg_o  [label="directed line: one", pos="-7.15,4.25!"];
+  lg_m1 [shape=point, width=0.01, pos="-9.2,3.8!"];  lg_m2 [shape=point, width=0.01, pos="-8.0,3.8!"];
+  lg_m  [label="undirected line: many", pos="-7.0,3.8!"];
+  lg_t1 [shape=point, width=0.01, pos="-9.2,3.35!"]; lg_t2 [shape=point, width=0.01, pos="-8.0,3.35!"];
+  lg_t  [label="double line: total participation", pos="-6.67,3.35!"];
+  lg_p1 [shape=point, width=0.01, pos="-9.2,2.9!"];  lg_p2 [shape=point, width=0.01, pos="-8.0,2.9!"];
+  lg_p  [label="single line: partial participation", pos="-6.6,2.9!"];
+  lg_ro [label="role: word written on the line", pos="-7.95,2.45!"];
+  lg_o1 -- lg_o2 [dir=forward, arrowhead=normal, arrowsize=1.2];
+  lg_m1 -- lg_m2 [dir=none];
+  lg_t1 -- lg_t2 [dir=none, color="black:invis:black", penwidth=1];
+  lg_p1 -- lg_p2 [dir=none];
+
+}

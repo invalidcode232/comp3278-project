@@ -29,7 +29,7 @@ export interface MessageRow {
  *     index (sender-first and recipient-first).
  *  2. ranked: ROW_NUMBER() restarts at 1 for each partner, newest first.
  *  3. Keep rn = 1 (the latest per partner), join the partner's profile.
- * Messaging yourself is blocked in the app, so no message appears in both branches.
+ * CHECK (sender_id <> recipient_id) guarantees no message appears in both branches.
  */
 export async function listConversations(db: Db, userId: string): Promise<ConversationRow[]> {
   const [rows] = await db.execute<(ConversationRow & RowDataPacket)[]>(

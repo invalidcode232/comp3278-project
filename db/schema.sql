@@ -27,7 +27,10 @@ CREATE TABLE images (
   PRIMARY KEY (id),
   UNIQUE KEY uq_images_sha256 (sha256),
   CONSTRAINT chk_images_mime CHECK (mime_type IN ('image/jpeg','image/png','image/webp','image/gif')),
-  CONSTRAINT chk_images_size CHECK (byte_size BETWEEN 1 AND 5242880)   -- 5 MB
+  CONSTRAINT chk_images_size CHECK (byte_size BETWEEN 1 AND 5242880),   -- 5 MB
+  -- byte_size is derivable from data. It is stored so lists can show sizes without
+  -- reading the BLOB; this CHECK guarantees the stored copy can never disagree.
+  CONSTRAINT chk_images_size_matches CHECK (byte_size = LENGTH(data))
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------
@@ -52,7 +55,9 @@ CREATE TABLE users (
   KEY idx_users_avatar (avatar_image_id),
   CONSTRAINT fk_users_avatar FOREIGN KEY (avatar_image_id)
     REFERENCES images (id) ON DELETE SET NULL,
-  CONSTRAINT chk_users_handle CHECK (REGEXP_LIKE(handle, '^[A-Za-z0-9_]{3,30}$'))
+  CONSTRAINT chk_users_handle CHECK (REGEXP_LIKE(handle, '^[A-Za-z0-9_]{3,30}$')),
+  CONSTRAINT chk_users_email CHECK (email LIKE '_%@_%._%'),
+  CONSTRAINT chk_users_display_name CHECK (CHAR_LENGTH(TRIM(display_name)) > 0)
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------
@@ -77,7 +82,8 @@ CREATE TABLE topics (
   name         VARCHAR(50) NOT NULL,
   description  VARCHAR(255) NOT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_topics_name (name)
+  UNIQUE KEY uq_topics_name (name),
+  CONSTRAINT chk_topics_name CHECK (CHAR_LENGTH(TRIM(name)) > 0)
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------
@@ -90,6 +96,8 @@ CREATE TABLE topics (
 --                         body-or-image CHECK, and MySQL rejects it anyway
 --                         (error 3823: column used in a CHECK cannot have a
 --                         SET NULL referential action). Same for comments/messages.
+-- chk_threads_content: text that is only spaces does not count as content.
+-- chk_threads_edit_time: updated_at can never be earlier than created_at.
 -- (topic_id, created_at) serves "threads in topic X, newest first".
 -- -----------------------------------------------------------------------------
 CREATE TABLE threads (
@@ -111,7 +119,9 @@ CREATE TABLE threads (
     REFERENCES topics (id) ON DELETE RESTRICT,
   CONSTRAINT fk_threads_image FOREIGN KEY (image_id)
     REFERENCES images (id) ON DELETE RESTRICT,
-  CONSTRAINT chk_threads_content CHECK (body IS NOT NULL OR image_id IS NOT NULL)
+  CONSTRAINT chk_threads_content
+    CHECK ((body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR image_id IS NOT NULL),
+  CONSTRAINT chk_threads_edit_time CHECK (updated_at >= created_at)
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------
@@ -136,7 +146,9 @@ CREATE TABLE comments (
     REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_comments_image FOREIGN KEY (image_id)
     REFERENCES images (id) ON DELETE RESTRICT,
-  CONSTRAINT chk_comments_content CHECK (body IS NOT NULL OR image_id IS NOT NULL)
+  CONSTRAINT chk_comments_content
+    CHECK ((body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR image_id IS NOT NULL),
+  CONSTRAINT chk_comments_edit_time CHECK (updated_at >= created_at)
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------
@@ -198,7 +210,8 @@ CREATE TABLE collections (
   PRIMARY KEY (id),
   UNIQUE KEY uq_collections_owner_name (owner_id, name),
   CONSTRAINT fk_collections_owner FOREIGN KEY (owner_id)
-    REFERENCES users (id) ON DELETE CASCADE
+    REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT chk_collections_name CHECK (CHAR_LENGTH(TRIM(name)) > 0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE collection_threads (
@@ -218,6 +231,8 @@ CREATE TABLE collection_threads (
 -- rows between two users in either direction. Deleting either user CASCADEs
 -- the whole conversation away. The two composite indexes serve both
 -- directions of "messages between A and B ordered by time".
+-- chk_messages_not_self: you cannot message yourself (the conversation-list
+-- query in src/lib/queries/messages.ts relies on this).
 -- -----------------------------------------------------------------------------
 CREATE TABLE messages (
   id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -236,5 +251,7 @@ CREATE TABLE messages (
     REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_messages_image FOREIGN KEY (image_id)
     REFERENCES images (id) ON DELETE RESTRICT,
-  CONSTRAINT chk_messages_content CHECK (body IS NOT NULL OR image_id IS NOT NULL)
+  CONSTRAINT chk_messages_content
+    CHECK ((body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR image_id IS NOT NULL),
+  CONSTRAINT chk_messages_not_self CHECK (sender_id <> recipient_id)
 ) ENGINE=InnoDB;

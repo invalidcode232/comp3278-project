@@ -164,7 +164,9 @@ Other scripts: `npm run typecheck` runs `tsc --noEmit`.
 │   ├── apply-schema.ts         # npm run db:schema
 │   └── seed.ts                 # npm run db:seed
 ├── docs/
-│   ├── er-diagram.md           # Mermaid ER diagram + relationship notes
+│   ├── er-diagram.md           # Chen-notation ER diagram + relationships + mapping to tables
+│   ├── er-diagram.svg / .png   # the rendered diagram (PNG for slides)
+│   ├── er-diagram.dot          # Graphviz source of the diagram
 │   └── key-sql.md              # the most interesting queries, explained
 ├── docker-compose.yml          # MySQL 8.4 on host port ${DB_PORT}
 ├── .env.example
