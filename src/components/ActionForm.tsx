@@ -1,0 +1,64 @@
+"use client";
+
+import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import { MAX_IMAGE_BYTES } from "@/lib/limits";
+import type { FormState } from "@/lib/validate";
+
+/**
+ * A form wired to a Server Action that returns { error } or { ok }.
+ * It shows the message under the fields, disables the button while pending,
+ * and keeps the user's input when there is an error.
+ */
+export function ActionForm({
+  action,
+  children,
+  submitLabel,
+  className = "space-y-3",
+  buttonClassName = "btn",
+  resetOnSuccess = false,
+}: {
+  action: (prev: FormState, formData: FormData) => Promise<FormState>;
+  children: ReactNode;
+  submitLabel: string;
+  className?: string;
+  buttonClassName?: string;
+  resetOnSuccess?: boolean;
+}) {
+  const [state, formAction, pending] = useActionState(action, undefined);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const ref = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (resetOnSuccess && state?.ok) ref.current?.reset();
+  }, [state, resetOnSuccess]);
+
+  const error = clientError ?? state?.error;
+
+  return (
+    <form
+      ref={ref}
+      className={className}
+      onSubmit={(e) => {
+        e.preventDefault();
+        // Check file sizes before uploading, so an oversized file never hits
+        // the Server Action body limit. The server checks again (upload.ts).
+        const inputs = e.currentTarget.querySelectorAll<HTMLInputElement>("input[type=file]");
+        const tooBig = [...inputs].some((i) => [...(i.files ?? [])].some((f) => f.size > MAX_IMAGE_BYTES));
+        if (tooBig) {
+          setClientError("Images must be 5 MB or smaller.");
+          return;
+        }
+        setClientError(null);
+        const fd = new FormData(e.currentTarget);
+        startTransition(() => formAction(fd));
+      }}
+    >
+      {children}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {!error && state?.ok && <p className="text-sm text-green-700">{state.ok}</p>}
+      <button type="submit" disabled={pending} className={buttonClassName}>
+        {pending ? "Working…" : submitLabel}
+      </button>
+    </form>
+  );
+}
