@@ -36,22 +36,22 @@ graph ER {
 
   // ---------------------------------------------------------------- relationship sets
   node [shape=diamond, style=filled, fillcolor="#fdf0d5", penwidth=1.4, width=1.5, height=0.95, fontsize=13];
-  R_HAS       [label="HAS", pos="-3.61,-2.34!"];
+  R_HAS       [label="HAS_SESSION", pos="-3.61,-2.34!", width=2.0];
   R_FOLLOWS   [label="FOLLOWS", pos="1.6,4.4!", width=1.7];
   R_OWNS      [label="OWNS", pos="3.25,3.25!"];
   R_SAVED     [label="SAVED_IN", pos="7.75,3.75!", width=1.7];
   R_WRITES    [label="WRITES", pos="4.6,1.6!"];
-  R_LIKES_T   [label="LIKES", pos="4.8,-0.3!"];
+  R_LIKES_T   [label="LIKES_THREAD", pos="4.8,-0.3!", width=2.1];
   R_IN        [label="BELONGS_TO", pos="13.0,0.8!", width=1.9];
-  R_ON        [label="ON", pos="8.5,-2.5!"];
-  R_LIKES_C   [label="LIKES", pos="3.97,-2.11!"];
+  R_ON        [label="COMMENT_ON", pos="8.5,-2.5!", width=1.9];
+  R_LIKES_C   [label="LIKES_COMMENT", pos="3.85,-2.2!", width=2.3];
   R_POSTS     [label="POSTS", pos="3.0,-3.34!"];
   R_AVATAR    [label="AVATAR", pos="0.72,-5.15!"];
   R_SENDS     [label="SENDS", pos="-2.64,-3.77!"];
   R_RECEIVES  [label="RECEIVES", pos="-1.57,-4.32!", width=1.6];
-  R_M_IMG     [label="HAS_IMAGE", pos="-1.9,-8.6!", width=1.8];
-  R_C_IMG     [label="HAS_IMAGE", pos="4.44,-7.9!", width=1.8];
-  R_T_IMG     [label="HAS_IMAGE", pos="11.0,-10.5!", width=1.8];
+  R_M_IMG     [label="MESSAGE_IMAGE", pos="-1.9,-8.6!", width=2.3];
+  R_C_IMG     [label="COMMENT_IMAGE", pos="4.44,-7.9!", width=2.3];
+  R_T_IMG     [label="THREAD_IMAGE", pos="11.0,-10.5!", width=2.2];
 
   // ---------------------------------------------------------------- attributes
   node [shape=ellipse, style=filled, fillcolor=white, penwidth=1, width=0, height=0, margin="0.09,0.04", fontsize=13];

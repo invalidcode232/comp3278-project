@@ -4,7 +4,7 @@ A small social web app: threads grouped by topic, comments, likes, follows, save
 
 - **Stack:** Next.js 16 (App Router, TypeScript) + MySQL 8, using the `mysql2/promise` driver with a connection pool.
 - **No ORM or query builder.** Every database operation is hand-written, parameterized SQL in [`src/lib/queries/`](src/lib/queries), one file per entity.
-- **Docs:** [ER diagram](docs/er-diagram.md) · [Key SQL queries explained](docs/key-sql.md) · [Schema](db/schema.sql)
+- **Docs:** [ER diagram](docs/er-diagram.md) · [Relational schema & normalization (BCNF)](docs/relational-schema.md) · [Key SQL queries explained](docs/key-sql.md) · [Schema](db/schema.sql)
 
 ---
 
@@ -167,6 +167,7 @@ Other scripts: `npm run typecheck` runs `tsc --noEmit`.
 │   ├── er-diagram.md           # Chen-notation ER diagram + relationships + mapping to tables
 │   ├── er-diagram.svg / .png   # the rendered diagram (PNG for slides)
 │   ├── er-diagram.dot          # Graphviz source of the diagram
+│   ├── relational-schema.md    # relational schema, functional dependencies, BCNF, constraints
 │   └── key-sql.md              # the most interesting queries, explained
 ├── docker-compose.yml          # MySQL 8.4 on host port ${DB_PORT}
 ├── .env.example
