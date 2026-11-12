@@ -18,8 +18,7 @@
 
 graph ER {
   graph [layout=neato, splines=true, outputorder=edgesfirst, pad=0.3, bgcolor=white,
-         fontname="Helvetica", fontsize=20, labelloc=t,
-         label="Threadly: unified posts (Chen notation)"];
+         fontname="Helvetica"];
   node  [fontname="Helvetica"];
   edge  [fontname="Helvetica", fontsize=15, penwidth=1.2];
 
