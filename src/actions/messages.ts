@@ -1,7 +1,9 @@
 "use server";
 
+import { withImageTransaction } from "@/lib/image-lifecycle";
+
 import { revalidatePath } from "next/cache";
-import { pool, withTransaction } from "@/lib/db";
+import { pool } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { sendMessage } from "@/lib/queries/messages";
 import { getUserByHandle } from "@/lib/queries/users";
@@ -27,7 +29,7 @@ export async function sendMessageAction(
     const file = getUploadedFile(formData);
     if (!body && !file)
       throw new InputError("A message needs text, an image, or both.");
-    await withTransaction(async (conn) => {
+    await withImageTransaction(async (conn) => {
       const imageId = file ? await saveImage(conn, file) : null;
       await sendMessage(conn, {
         senderId: me.id,

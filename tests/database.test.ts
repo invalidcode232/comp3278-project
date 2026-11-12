@@ -1,3 +1,6 @@
+import { withImageTransaction } from "../src/lib/image-lifecycle";
+import { insertImage, getImage, getVisibleImage } from "../src/lib/queries/images";
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { test } from "node:test";
@@ -44,8 +47,56 @@ test("database-backed policy boundaries", async (t) => {
       assert.equal(conversations[0].partner_id, userId);
       assert.equal(conversations[0].last_message_id, second);
     });
+    /** Exercise visibility changes, shared references, rollback, and concurrent reuse. */
+    await t.test("image visibility and cleanup follow live references", async () => {
+      const peer = randomUUID();
+      await pool.execute("INSERT INTO users (id, handle, email, password_hash, display_name) VALUES (?, ?, ?, ?, ?)",
+        [peer, `test_${peer.slice(0,8)}`, `${peer}@example.test`, "x".repeat(60), "Peer"]);
+      const data = Buffer.from(`private-image-${userId}`);
+      const image = { sha256: createHash("sha256").update(data).digest("hex"), mimeType: "image/png", byteSize: data.length, data };
+      let imageId = 0;
+      try {
+        await withImageTransaction(async (conn) => {
+          imageId = await insertImage(conn, image);
+          await sendMessage(conn, { senderId: userId, recipientId: peer, body: null, imageId });
+        });
+        assert.equal(await getVisibleImage(pool, imageId, null), null);
+        assert.equal(await getVisibleImage(pool, imageId, randomUUID()), null);
+        assert.ok(await getVisibleImage(pool, imageId, userId));
+        assert.ok(await getVisibleImage(pool, imageId, peer));
+        await withImageTransaction(async (conn) => {
+          await conn.execute("UPDATE users SET avatar_image_id = ? WHERE id = ?", [imageId, userId]);
+        });
+        assert.ok(await getVisibleImage(pool, imageId, null), "public avatar makes shared bytes public");
+        await withImageTransaction(async (conn) => {
+          await conn.execute("UPDATE users SET avatar_image_id = NULL WHERE id = ?", [userId]);
+        });
+        assert.equal(await getVisibleImage(pool, imageId, null), null, "public access is revoked immediately");
+        await assert.rejects(withImageTransaction(async (conn) => {
+          await conn.execute("DELETE FROM messages WHERE image_id = ?", [imageId]);
+          throw new Error("rollback fixture");
+        }), /rollback fixture/);
+        assert.ok(await getVisibleImage(pool, imageId, peer), "failed mutation preserves references");
+        const ids = await Promise.all([1, 2].map(async () => withImageTransaction(async (conn) => {
+          const reused = await insertImage(conn, image);
+          await sendMessage(conn, { senderId: userId, recipientId: userId, body: null, imageId: reused });
+          return reused;
+        })));
+        assert.deepEqual(ids, [imageId, imageId]);
+        await withImageTransaction(async (conn) => {
+          await conn.execute("DELETE FROM users WHERE id = ?", [peer]);
+        });
+        assert.ok(await getImage(pool, imageId), "self-message references survive peer deletion");
+        await withImageTransaction(async (conn) => {
+          await conn.execute("DELETE FROM messages WHERE image_id = ?", [imageId]);
+        });
+        assert.equal(await getImage(pool, imageId), null, "last reference deletion removes bytes immediately");
+      } finally {
+        await withImageTransaction(async (conn) => { await conn.execute("DELETE FROM users WHERE id = ?", [peer]); });
+      }
+    });
   } finally {
-    await pool.execute("DELETE FROM users WHERE id = ?", [userId]);
+    await withImageTransaction(async (conn) => { await conn.execute("DELETE FROM users WHERE id = ?", [userId]); });
     await pool.end();
   }
 });

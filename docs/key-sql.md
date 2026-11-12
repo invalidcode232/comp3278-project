@@ -109,7 +109,7 @@ The first CTE collects every message I sent or received, labelled with the partn
 
 ## 7. Transactional thread creation (image + thread)
 
-`src/actions/threads.ts` → `createThreadAction`, using `withTransaction` from `src/lib/db.ts`
+`src/actions/threads.ts` → `createThreadAction`, using `withImageTransaction` from `src/lib/image-lifecycle.ts`
 
 ```sql
 START TRANSACTION;
@@ -158,7 +158,7 @@ WHERE ct.collection_id = ? AND ct.thread_id = ? AND c.owner_id = ?;
 DELETE FROM users WHERE id = ?;
 ```
 
-One statement removes the user and everything they own, because each child table has `ON DELETE CASCADE`. That covers sessions; threads, and through them the comments, likes and collection entries on those threads; the user's own comments and likes; follows in both directions; collections; and messages they sent or received. InnoDB runs the whole cascade as one atomic statement. Tested in the app: deleting `grace` removed her user row, session, thread, comment, 11 thread likes, 9 comment likes and her follow, and left everyone else's data intact.
+One statement removes the user and everything they own, because each child table has `ON DELETE CASCADE`. That covers sessions; threads, and through them the comments, likes and collection entries on those threads; the user's own comments and likes; follows in both directions; collections; and messages they sent or received. InnoDB runs the cascade atomically. The application wraps it in an image transaction that also removes newly unreferenced BLOBs before commit. Current validation evidence is in [VALIDATION.md](VALIDATION.md).
 
 ---
 
@@ -187,3 +187,18 @@ request that changes it refreshes the cookie. Logout deletes the token.
 Self-messaging uses the existing SENDS and RECEIVES relationships: the same USER
 may occupy both roles for one MESSAGE. No new entity or relationship is needed.
 The UI renders that message once on the sending side.
+
+## Image authorization and immediate cleanup
+
+`getVisibleImage` permits a row when an `EXISTS` subquery finds an avatar, thread,
+or comment reference, or a message reference involving the authenticated viewer.
+Authorization precedes ETag handling; missing and unauthorized IDs return the
+same 404. `private, no-store` avoids stale access through caches.
+
+`deleteUnreferencedImages` uses four `NOT EXISTS` checks, one for each referencing
+entity. It runs after reference changes and cascades but before commit.
+`withImageTransaction` acquires a database-scoped `GET_LOCK` before BEGIN and
+releases it after COMMIT/ROLLBACK, serializing application reference mutations
+across processes. This is a deliberate simple concurrency strategy for a small
+course app; it avoids the race between deduplication lookup and orphan deletion.
+Foreign keys remain an additional integrity constraint.

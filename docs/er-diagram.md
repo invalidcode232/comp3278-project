@@ -125,3 +125,10 @@ Chen notation has no symbol for these rules, so they are enforced by CHECK and U
 Self-messaging uses the existing SENDS and RECEIVES relationships: the same USER
 may occupy both roles for one MESSAGE. No new entity or relationship is needed.
 The UI renders that message once on the sending side.
+
+Image visibility and lifecycle are cross-relationship rules: every committed
+application image has a reference through AVATAR, THREAD_IMAGE, COMMENT_IMAGE,
+or MESSAGE_IMAGE. Each individual relationship remains optional, so do not draw
+total participation on every image edge. Public references grant public access;
+otherwise MESSAGE_IMAGE access requires the sender or recipient. These rules are
+explained in SQL/application logic rather than invented Chen symbols.

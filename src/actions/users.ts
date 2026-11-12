@@ -1,8 +1,10 @@
 "use server";
 
+import { withImageTransaction } from "@/lib/image-lifecycle";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isMysqlError, pool, withTransaction } from "@/lib/db";
+import { isMysqlError, pool } from "@/lib/db";
 import { clearSessionCookie, requireUser } from "@/lib/auth";
 import { deleteUser, getUserById, updateProfile } from "@/lib/queries/users";
 import { getUploadedFile, saveImage } from "@/lib/upload";
@@ -30,7 +32,7 @@ export async function updateProfileAction(
   try {
     const bio = optionalText(formData, "bio", 500);
     const file = getUploadedFile(formData, "avatar");
-    await withTransaction(async (conn) => {
+    await withImageTransaction(async (conn) => {
       const current = await getUserById(conn, me.id);
       if (!current) throw new Error("User not found");
       let avatarImageId = current.avatar_image_id;
@@ -65,7 +67,7 @@ export async function deleteAccountAction(
   }
   // ON DELETE CASCADE removes sessions, threads, comments, likes, follows,
   // collections and messages in the same statement.
-  await deleteUser(pool, me.id);
+  await withImageTransaction((conn) => deleteUser(conn, me.id));
   await clearSessionCookie();
   revalidatePath("/", "layout");
   redirect("/");

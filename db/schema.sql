@@ -15,7 +15,8 @@ USE comp3278_social;
 -- images: content-addressed BLOB store. A file is identified by its SHA-256,
 -- so uploading the same bytes twice reuses one row (INSERT ... ON DUPLICATE KEY).
 -- Images have no owner: one row may be shared by many users/threads/messages,
--- so deleting a user or thread never deletes an image row.
+-- so cleanup deletes a row only after its last reference disappears.
+-- The application coordinates reference changes and cleanup in one transaction.
 -- -----------------------------------------------------------------------------
 CREATE TABLE images (
   id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -92,7 +93,8 @@ CREATE TABLE topics (
 --  author_id  CASCADE  -> deleting a user deletes their threads.
 --  topic_id   RESTRICT -> a topic that still has threads cannot be deleted
 --                         (threads must always have a topic: NOT NULL).
---  image_id   RESTRICT -> images are shared (dedup) and never deleted by the app.
+--  image_id   RESTRICT -> referenced images are shared (dedup) and protected.
+--                         The application deletes only unreferenced images.
 --                         SET NULL is not an option: it could break the
 --                         body-or-image CHECK, and MySQL rejects it anyway
 --                         (error 3823: column used in a CHECK cannot have a

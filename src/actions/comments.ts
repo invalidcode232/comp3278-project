@@ -1,8 +1,10 @@
 "use server";
 
+import { withImageTransaction } from "@/lib/image-lifecycle";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isMysqlError, pool, withTransaction } from "@/lib/db";
+import { isMysqlError, pool } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
   createComment,
@@ -31,7 +33,7 @@ export async function createCommentAction(
     const file = getUploadedFile(formData);
     if (!body && !file)
       throw new InputError("A comment needs text, an image, or both.");
-    await withTransaction(async (conn) => {
+    await withImageTransaction(async (conn) => {
       const imageId = file ? await saveImage(conn, file) : null;
       await createComment(conn, { threadId, authorId: me.id, body, imageId });
     });
@@ -66,7 +68,7 @@ export async function updateCommentAction(
     if (!body && !file && (removeImage || current.image_id === null)) {
       throw new InputError("A comment needs text, an image, or both.");
     }
-    await withTransaction(async (conn) => {
+    await withImageTransaction(async (conn) => {
       const imageId = file
         ? await saveImage(conn, file)
         : removeImage
@@ -87,6 +89,8 @@ export async function updateCommentAction(
 /** Delete only the authenticated author’s comment and refresh affected pages. */
 export async function deleteCommentAction(formData: FormData): Promise<void> {
   const me = await requireUser();
-  await deleteComment(pool, id(formData.get("comment_id")), me.id);
+  await withImageTransaction((conn) =>
+    deleteComment(conn, id(formData.get("comment_id")), me.id),
+  );
   revalidatePath("/", "layout");
 }

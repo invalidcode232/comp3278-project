@@ -33,3 +33,14 @@ Runtime feature acceptance remains pending until the corresponding checks below.
 - Regenerated SVG/PNG from the Chen-notation source. The model needs no new
   relationship: the same user can occupy SENDS and RECEIVES for one message.
 - Browser sending-side presentation is covered in the later workflow check.
+
+## 12 November 2026 — image authorization and cleanup (D08/D09)
+
+- TypeScript and MySQL integration tests pass.
+- Verified anonymous/outsider denial, sender/recipient access, public avatar
+  access, revocation after removing that public reference, rollback preservation,
+  concurrent deduplication, account cascade with shared image survival, and
+  deletion of bytes after the last reference disappears.
+- No new ER entity or attribute: visibility derives from relationships and
+  cleanup enforces the disjunction of the four possible reference types.
+- HTTP response and browser checks remain in the combined workflow validation.

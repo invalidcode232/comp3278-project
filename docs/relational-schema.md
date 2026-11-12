@@ -106,7 +106,7 @@ Every foreign key has an index, as InnoDB requires. Extra composite indexes matc
 - **Images as a separate entity.** Storing image data in the `threads`, `comments`, `messages` and `users` rows would duplicate BLOBs and repeat the type and size columns in four tables. One `images` relation referenced by foreign keys keeps each fact in one place and makes deduplication possible.
 - **Known trade-offs:**
   - `CHAR(36)` text UUIDs were required by the specification. `BINARY(16)` would use less space and index better, and random UUIDs scatter inserts across the primary-key index.
-  - Image rows are never deleted, because they can be shared, so unused images can pile up. Cleaning them up would need reference counting or a periodic sweep: `DELETE FROM images WHERE id NOT IN (…all referencing columns…)`.
+  - Images have no exclusive owner. The application removes them only after all avatar/thread/comment/message references disappear, inside the same serialized image transaction as the mutation. Current public references or DM participant membership determine read access; no duplicated visibility column is stored.
 
 Self-messaging uses the existing SENDS and RECEIVES relationships: the same USER
 may occupy both roles for one MESSAGE. No new entity or relationship is needed.

@@ -1,8 +1,10 @@
 "use server";
 
+import { withImageTransaction } from "@/lib/image-lifecycle";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isMysqlError, pool, withTransaction } from "@/lib/db";
+import { isMysqlError, pool } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
   createThread,
@@ -35,7 +37,7 @@ export async function createThreadAction(
 
     // One transaction: the image row and the thread row are saved together,
     // or neither is (e.g. if the topic id is invalid the image insert is rolled back).
-    threadId = await withTransaction(async (conn) => {
+    threadId = await withImageTransaction(async (conn) => {
       const imageId = file ? await saveImage(conn, file) : null;
       return createThread(conn, { authorId: me.id, topicId, body, imageId });
     });
@@ -70,7 +72,7 @@ export async function updateThreadAction(
       throw new InputError("A thread needs text, an image, or both.");
     }
 
-    await withTransaction(async (conn) => {
+    await withImageTransaction(async (conn) => {
       const imageId = file
         ? await saveImage(conn, file)
         : removeImage
@@ -91,7 +93,9 @@ export async function updateThreadAction(
 /** Delete only the authenticated author’s thread and dependent records, then redirect home. */
 export async function deleteThreadAction(formData: FormData): Promise<void> {
   const me = await requireUser();
-  await deleteThread(pool, id(formData.get("thread_id")), me.id);
+  await withImageTransaction((conn) =>
+    deleteThread(conn, id(formData.get("thread_id")), me.id),
+  );
   revalidatePath("/", "layout");
   redirect("/");
 }
