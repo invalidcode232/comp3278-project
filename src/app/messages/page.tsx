@@ -13,6 +13,9 @@ export default async function MessagesPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Messages</h1>
+      <Link href={`/messages/${me.handle}`} className="btn-secondary">
+        Message yourself
+      </Link>
       {conversations.length === 0 ? (
         <p className="muted">
           No conversations yet. Open someone’s profile and press “Message”.

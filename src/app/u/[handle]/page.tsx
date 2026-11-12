@@ -60,6 +60,11 @@ export default async function ProfilePage({
               Edit profile
             </Link>
           )}
+          {isMe && (
+            <Link href={`/messages/${user.handle}`} className="btn-secondary">
+              Message yourself
+            </Link>
+          )}
           {me && !isMe && (
             <>
               <form action={iFollow ? unfollowAction : followAction}>

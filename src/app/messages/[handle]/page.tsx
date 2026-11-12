@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { sendMessageAction } from "@/actions/messages";
 import { ActionForm } from "@/components/ActionForm";
 import { Avatar } from "@/components/Avatar";
@@ -26,7 +26,6 @@ export default async function ConversationPage({
     decodeURIComponent((await params).handle),
   );
   if (!partner) notFound();
-  if (partner.id === me.id) redirect("/messages");
   const messages = await listConversation(pool, me.id, partner.id);
 
   return (

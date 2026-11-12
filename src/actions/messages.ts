@@ -23,8 +23,6 @@ export async function sendMessageAction(
   try {
     const recipient = await getUserByHandle(pool, str(formData, "to"));
     if (!recipient) throw new InputError("That user does not exist.");
-    if (recipient.id === me.id)
-      throw new InputError("You can't message yourself.");
     const body = optionalText(formData, "body");
     const file = getUploadedFile(formData);
     if (!body && !file)

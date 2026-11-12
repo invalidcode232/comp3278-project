@@ -149,6 +149,7 @@ graph ER {
   role_follower [shape=plaintext, style="", fontsize=14, label="follower", pos="0.08,3.9!"];
   role_followee [shape=plaintext, style="", fontsize=14, label="followee", pos="1.85,2.6!"];
 
+  // SENDS and RECEIVES may connect the same user to one message (self-message).
   // ---------------------------------------------------------------- legend
   node [fontsize=12];
   lg_title [shape=plaintext, style="", label=<<b>Notation</b>>, pos="-7.4,7.3!", fontsize=15];

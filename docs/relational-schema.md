@@ -71,7 +71,7 @@ A relation is in **BCNF** if, for every non-trivial functional dependency X → 
 | | CHECK | `chk_users_handle`: 3–30 letters, digits or underscores (`REGEXP_LIKE`)<br>`chk_users_email`: basic `x@y.z` shape<br>`chk_users_display_name`, `chk_topics_name`, `chk_collections_name`: not blank<br>`chk_images_mime`: only jpeg, png, webp or gif<br>`chk_images_size`: 1 byte to 5 MB<br>`chk_images_size_matches`: `byte_size = LENGTH(data)` |
 | **Entity / key** | PRIMARY KEY, UNIQUE | One primary key per relation. Candidate keys enforced with UNIQUE: `users.handle`, `users.email`, `images.sha256`, `topics.name`, `collections(owner_id, name)`. Handle and email are unique ignoring case, because the collation is case-insensitive. |
 | **Referential** | FOREIGN KEY | 20 foreign keys, each with a chosen `ON DELETE` (see below). There are also 15 CHECK constraints in total. |
-| **Semantic (business rules)** | CHECK | `chk_threads_content`, `chk_comments_content`, `chk_messages_content`: a post or message needs non-blank text, an image, or both<br>`chk_threads_edit_time`, `chk_comments_edit_time`: `updated_at >= created_at`<br>`chk_follows_not_self`: you cannot follow yourself<br>`chk_messages_not_self`: you cannot message yourself |
+| **Semantic (business rules)** | CHECK | `chk_threads_content`, `chk_comments_content`, `chk_messages_content`: a post or message needs non-blank text, an image, or both<br>`chk_threads_edit_time`, `chk_comments_edit_time`: `updated_at >= created_at`<br>`chk_follows_not_self`: you cannot follow yourself |
 
 Each of these is tested by a deliberately invalid `INSERT` or `UPDATE` that the DBMS rejects. The app also validates input first, so users get a friendly message, but the database is the final authority.
 
@@ -107,3 +107,7 @@ Every foreign key has an index, as InnoDB requires. Extra composite indexes matc
 - **Known trade-offs:**
   - `CHAR(36)` text UUIDs were required by the specification. `BINARY(16)` would use less space and index better, and random UUIDs scatter inserts across the primary-key index.
   - Image rows are never deleted, because they can be shared, so unused images can pile up. Cleaning them up would need reference counting or a periodic sweep: `DELETE FROM images WHERE id NOT IN (…all referencing columns…)`.
+
+Self-messaging uses the existing SENDS and RECEIVES relationships: the same USER
+may occupy both roles for one MESSAGE. No new entity or relationship is needed.
+The UI renders that message once on the sending side.

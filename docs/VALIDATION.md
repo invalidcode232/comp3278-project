@@ -24,3 +24,12 @@ Runtime feature acceptance remains pending until the corresponding checks below.
 - Browser cookie renewal remains scheduled for the combined workflow check.
 - Proxy uses Next.js's Node runtime and response-cookie API:
   <https://nextjs.org/docs/app/api-reference/file-conventions/proxy>.
+
+## 12 November 2026 — self-messaging (D07)
+
+- Applied `001-self-messages.sql` to the disposable baseline without resetting it.
+- TypeScript and database checks pass, including two self-messages in order,
+  one self-conversation entry, and the latest-message projection.
+- Regenerated SVG/PNG from the Chen-notation source. The model needs no new
+  relationship: the same user can occupy SENDS and RECEIVES for one message.
+- Browser sending-side presentation is covered in the later workflow check.

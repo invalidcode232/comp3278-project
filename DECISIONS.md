@@ -25,7 +25,7 @@ skipped, rather than resolved with invented dates or responsibilities.
 | D04 | Keep collections private. | Retain owner-only access. | Already enforced in the inspected read and mutation paths. No policy change needed. |
 | D05 | Keep each thread's topic fixed after creation. | Retain the existing editing scope. | Baseline edit operations update text/image only. No policy change needed. |
 | D06 | Keep the current account-deletion cascade, including both sides' DM history. | Retain the simpler deletion model. | Baseline removes the user's sessions, authored threads/comments, likes, follows, owned collections/links, and sent/received messages. Deleting their threads also removes other users' comments/likes and collection links to those threads. D09 adds cleanup of images left unreferenced. |
-| D07 | Any signed-in user may message any user, including themselves. Self-messages appear once, on the sending side only. | Retain unrestricted DMs while adding self-messaging. | Baseline allows messaging other users without a follow relationship, but rejects self-messages in the action, page, and database constraint. Update those paths and conversation queries to avoid duplicate self-messages/conversation entries. No read receipts or message-request workflow is added. |
+| D07 | Any signed-in user may message any user, including themselves. Self-messages appear once, on the sending side only. | Retain unrestricted DMs while adding self-messaging. | Self-messaging is implemented in schema/actions/pages, with received-branch exclusion in conversation queries. A non-destructive migration removes the old constraint. Database checks verify single entries and message ordering. No read receipts or message-request workflow is added. |
 | D08 | Require participant access to DM-only images. Images also used publicly remain public. Caching must respect permissions. | Protect private attachments without hiding images that have a public reference. | Baseline serves every image without authentication and with one-year public immutable caching. Reference-aware authorization and appropriate caching are pending. An image's content hash or deduplication does not itself grant access. |
 | D09 | Delete images immediately when their last reference is removed. | Reclaim unused image data while preserving shared images. | Baseline never deletes image rows. Cleanup must consider profiles, threads, comments, and messages, including edits/replacements and account/content deletion cascades. Coordinate reference checks and deletion with writes so shared images are not deleted incorrectly. |
 | D10 | Increase the image upload limit to 10 MiB; keep other limits and supported formats unchanged. | Allow larger image uploads without changing text/profile limits. | Baseline caps images at 5 MiB. Update server/browser validation and database size constraints together. Increase request-size allowance enough to carry a 10 MiB file plus form overhead. |
@@ -64,7 +64,7 @@ Text lengths below describe the baseline's JavaScript string-length checks
 ## Pending implementation and validation
 
 - [x] D03: daily-throttled sliding session expiry, including cookie renewal.
-- [ ] D07: self-messaging across schema, actions, queries, and UI.
+- [x] D07: self-messaging across schema, actions, queries, and UI.
 - [ ] D08: private-image authorization and permission-aware caching.
 - [ ] D09: immediate cleanup of images with no remaining references.
 - [ ] D10: consistent 10 MiB upload limits and request overhead allowance.

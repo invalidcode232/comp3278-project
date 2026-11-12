@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { test } from "node:test";
+import { sendMessage, listConversation, listConversations } from "../src/lib/queries/messages";
 import { pool } from "../src/lib/db";
 import { createSession, renewSession, deleteSession, getSessionUser } from "../src/lib/queries/sessions";
 
@@ -30,6 +31,18 @@ test("database-backed policy boundaries", async (t) => {
       assert.equal(await getSessionUser(pool, token), null);
       await deleteSession(pool, token);
       assert.equal(await renewSession(pool, token), false);
+    });
+    /** A self-message is one stored row, one conversation entry, and one sent item. */
+    await t.test("self messages appear once and remain in chronological order", async () => {
+      const first = await sendMessage(pool, { senderId: userId, recipientId: userId, body: "First note", imageId: null });
+      const second = await sendMessage(pool, { senderId: userId, recipientId: userId, body: "Second note", imageId: null });
+      const messages = await listConversation(pool, userId, userId);
+      assert.deepEqual(messages.map((message) => message.id), [first, second]);
+      assert.ok(messages.every((message) => message.sender_id === userId));
+      const conversations = await listConversations(pool, userId);
+      assert.equal(conversations.length, 1);
+      assert.equal(conversations[0].partner_id, userId);
+      assert.equal(conversations[0].last_message_id, second);
     });
   } finally {
     await pool.execute("DELETE FROM users WHERE id = ?", [userId]);

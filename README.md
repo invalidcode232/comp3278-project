@@ -243,3 +243,13 @@ With a disposable database initialized from the schema, set the normal `DB_*`
 environment variables and `RUN_DB_TESTS=1`, then run `npm run test:db`. Tests create
 and remove their own fixtures without resetting the database. Never point tests
 at a shared or production database.
+
+## Updating an existing database
+
+Fresh installs use `db/schema.sql`. To preserve existing data, apply numbered
+files in `db/migrations/` once, in order, using a MySQL client connected to
+`comp3278_social` (for example `mysql ... comp3278_social < db/migrations/001-self-messages.sql`).
+Do not run `db:reset` as an upgrade: it deletes data. Back up valued data first.
+
+Self-messaging is available from Messages and your own profile. A self-message
+is shown once, aligned on the sending side, and has one conversation-list entry.

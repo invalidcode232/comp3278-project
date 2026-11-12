@@ -232,8 +232,8 @@ CREATE TABLE collection_threads (
 -- rows between two users in either direction. Deleting either user CASCADEs
 -- the whole conversation away. The two composite indexes serve both
 -- directions of "messages between A and B ordered by time".
--- chk_messages_not_self: you cannot message yourself (the conversation-list
--- query in src/lib/queries/messages.ts relies on this).
+-- Self-messaging is allowed: SENDS and RECEIVES may refer to the same user.
+-- The conversation-list query excludes self-messages from its received branch.
 -- -----------------------------------------------------------------------------
 CREATE TABLE messages (
   id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -253,6 +253,5 @@ CREATE TABLE messages (
   CONSTRAINT fk_messages_image FOREIGN KEY (image_id)
     REFERENCES images (id) ON DELETE RESTRICT,
   CONSTRAINT chk_messages_content
-    CHECK ((body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR image_id IS NOT NULL),
-  CONSTRAINT chk_messages_not_self CHECK (sender_id <> recipient_id)
+    CHECK ((body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR image_id IS NOT NULL)
 ) ENGINE=InnoDB;

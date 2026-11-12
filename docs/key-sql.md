@@ -87,7 +87,7 @@ WITH my_messages AS (
   FROM messages WHERE sender_id = ?
   UNION ALL
   SELECT id, sender_id, body, image_id, created_at, sender_id AS partner_id
-  FROM messages WHERE recipient_id = ?
+  FROM messages WHERE recipient_id = ? AND sender_id <> ?
 ),
 ranked AS (
   SELECT mm.*,
@@ -105,7 +105,7 @@ WHERE r.rn = 1
 ORDER BY r.created_at DESC, r.id DESC;
 ```
 
-The first CTE collects every message I sent or received, labelled with the other person. It uses two `UNION ALL` branches rather than `sender_id = ? OR recipient_id = ?`, so each branch can use its own index. The `ROW_NUMBER()` window function numbers each partner's messages from newest to oldest, and `rn = 1` keeps only the latest one per conversation. This needs MySQL 8 (CTEs and window functions).
+The first CTE collects every message I sent or received, labelled with the partner. Self-messages are included only in the sent branch, so they appear once. It uses two `UNION ALL` branches rather than `sender_id = ? OR recipient_id = ?`, so each branch can use its own index. The `ROW_NUMBER()` window function numbers each partner's messages from newest to oldest, and `rn = 1` keeps only the latest one per conversation. This needs MySQL 8 (CTEs and window functions).
 
 ## 7. Transactional thread creation (image + thread)
 
@@ -183,3 +183,7 @@ only if the token has not expired and its current expiry is at most 29 days away
 The expiry minus 30 days represents the previous renewal time, avoiding a
 redundant attribute. Concurrent requests compete on the same row: only the
 request that changes it refreshes the cookie. Logout deletes the token.
+
+Self-messaging uses the existing SENDS and RECEIVES relationships: the same USER
+may occupy both roles for one MESSAGE. No new entity or relationship is needed.
+The UI renders that message once on the sending side.

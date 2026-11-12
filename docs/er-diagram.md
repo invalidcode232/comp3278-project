@@ -112,7 +112,7 @@ The schema in [`db/schema.sql`](../db/schema.sql) follows the standard ER-to-rel
 Chen notation has no symbol for these rules, so they are enforced by CHECK and UNIQUE constraints in `db/schema.sql`. The full list is in [relational-schema.md §3](relational-schema.md#3-integrity-constraints).
 
 - **THREAD, COMMENT and MESSAGE need non-blank text, an image, or both.**
-- **No following yourself, and no messaging yourself.**
+- **No following yourself. Self-messaging is allowed.**
 - **`updated_at` can never be earlier than `created_at`.**
 - **Collection names are unique per owner** (`UNIQUE (owner_id, name)`) and cannot be blank. The same goes for display names and topic names.
 - **Handles must be 3–30 letters, digits or underscores, and emails must look like `x@y.z`.** Handle and email are unique, ignoring case.
@@ -121,3 +121,7 @@ Chen notation has no symbol for these rules, so they are enforced by CHECK and U
   - Deleting a user cascades to everything that depends on them.
   - A topic that still has threads cannot be deleted (RESTRICT).
   - An image that is still referenced cannot be deleted (RESTRICT).
+
+Self-messaging uses the existing SENDS and RECEIVES relationships: the same USER
+may occupy both roles for one MESSAGE. No new entity or relationship is needed.
+The UI renders that message once on the sending side.

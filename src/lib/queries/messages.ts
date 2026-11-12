@@ -45,7 +45,7 @@ export interface MessageRow {
  *     index (sender-first and recipient-first).
  *  2. ranked: ROW_NUMBER() restarts at 1 for each partner, newest first.
  *  3. Keep rn = 1 (the latest per partner), join the partner's profile.
- * CHECK (sender_id <> recipient_id) guarantees no message appears in both branches.
+ * Excluding self-messages from the received branch keeps each message once.
  */
 export async function listConversations(
   db: Db,
@@ -57,7 +57,7 @@ export async function listConversations(
        FROM messages WHERE sender_id = ?
        UNION ALL
        SELECT id, sender_id, body, image_id, created_at, sender_id AS partner_id
-       FROM messages WHERE recipient_id = ?
+       FROM messages WHERE recipient_id = ? AND sender_id <> ?
      ),
      ranked AS (
        SELECT mm.*,
@@ -73,7 +73,7 @@ export async function listConversations(
      JOIN users u ON u.id = r.partner_id
      WHERE r.rn = 1
      ORDER BY r.created_at DESC, r.id DESC`,
-    [userId, userId],
+    [userId, userId, userId],
   );
   return rows;
 }
