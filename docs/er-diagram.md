@@ -10,13 +10,18 @@
 
 ## Notation
 
+Use the notation in `ch2 - ER-model.pdf`, especially pages 34, 49, 59, and 70:
+rectangles, relationship diamonds, attribute ellipses, underlined primary keys,
+arrows toward the one side, double lines for total participation, and named roles.
+Do not replace it with crow's-foot or UML notation.
+
 | Symbol | Meaning |
 |---|---|
 | Rectangle | **Entity set** |
 | Diamond | **Relationship set** |
 | Ellipse | **Attribute**; an <u>underlined</u> name is the primary key |
 | Dashed ellipse | **Derived attribute**: computed by a query every time, not stored (for example `follower_count` is a `COUNT(*)` over `follows`) |
-| Directed line (arrow from the diamond to an entity) | **Mapping cardinality "one"**: each relationship instance involves at most one entity of that set |
+| Directed line (arrow from the diamond to an entity) | **Mapping cardinality "one"**: each entity on the other side relates to at most one entity of that set |
 | Undirected line | **Mapping cardinality "many"**. Plain lines on both sides make a many-to-many relationship. |
 | Double line | **Total participation**: every entity on that side must take part in the relationship. In the schema this is a `NOT NULL` foreign key. |
 | Single line | **Partial participation**: taking part is optional |

@@ -1,20 +1,35 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { Db } from "../db";
 
+/** Thread projection with author/topic details and independently computed counts. */
 export interface ThreadView {
+  /** Stable identifier used to reference this record. */
   id: number;
+  /** Internal UUID of the content author. */
   author_id: string;
+  /** Optional plain-text content; null means image-only content. */
   body: string | null;
+  /** Shared attachment image ID, or null for text-only content. */
   image_id: number | null;
+  /** Creation timestamp decoded as a Date from UTC storage. */
   created_at: Date;
+  /** Whether the modification timestamp is later than creation. */
   edited: number; // 1 when updated_at > created_at
+  /** Public account handle used in profile URLs. */
   handle: string;
+  /** Human-readable account name shown in the UI. */
   display_name: string;
+  /** Shared avatar image ID, or null for the initial fallback. */
   avatar_image_id: number | null;
+  /** Numeric key of the fixed seeded topic. */
   topic_id: number;
+  /** Topic label displayed with the thread. */
   topic_name: string;
+  /** Computed number of distinct users liking this content. */
   like_count: number;
+  /** Computed number of comments belonging to this thread. */
   comment_count: number;
+  /** SQL EXISTS result: 1 when the current viewer likes this content, otherwise 0. */
   liked_by_me: number; // 1 / 0 from EXISTS
 }
 
@@ -40,9 +55,11 @@ const THREAD_SELECT = `
   JOIN users  u  ON u.id  = t.author_id
   JOIN topics tp ON tp.id = t.topic_id`;
 
-
 /** "All" feed: newest threads from everyone. */
-export async function listAllThreads(db: Db, viewerId: string | null): Promise<ThreadView[]> {
+export async function listAllThreads(
+  db: Db,
+  viewerId: string | null,
+): Promise<ThreadView[]> {
   const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
     `${THREAD_SELECT}
      ORDER BY t.created_at DESC, t.id DESC
@@ -53,7 +70,10 @@ export async function listAllThreads(db: Db, viewerId: string | null): Promise<T
 }
 
 /** "Following" feed: threads whose author the viewer follows. */
-export async function listFollowingThreads(db: Db, viewerId: string): Promise<ThreadView[]> {
+export async function listFollowingThreads(
+  db: Db,
+  viewerId: string,
+): Promise<ThreadView[]> {
   const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
     `${THREAD_SELECT}
      WHERE t.author_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = ?)
@@ -65,7 +85,11 @@ export async function listFollowingThreads(db: Db, viewerId: string): Promise<Th
 }
 
 /** Threads in one topic; served by the (topic_id, created_at) index. */
-export async function listTopicThreads(db: Db, viewerId: string | null, topicId: number): Promise<ThreadView[]> {
+export async function listTopicThreads(
+  db: Db,
+  viewerId: string | null,
+  topicId: number,
+): Promise<ThreadView[]> {
   const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
     `${THREAD_SELECT}
      WHERE t.topic_id = ?
@@ -77,7 +101,11 @@ export async function listTopicThreads(db: Db, viewerId: string | null, topicId:
 }
 
 /** A user's threads, for their profile page. */
-export async function listUserThreads(db: Db, viewerId: string | null, authorId: string): Promise<ThreadView[]> {
+export async function listUserThreads(
+  db: Db,
+  viewerId: string | null,
+  authorId: string,
+): Promise<ThreadView[]> {
   const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
     `${THREAD_SELECT}
      WHERE t.author_id = ?
@@ -104,7 +132,12 @@ export async function listCollectionThreads(
   return rows;
 }
 
-export async function getThread(db: Db, viewerId: string | null, threadId: number): Promise<ThreadView | null> {
+/** Read a thread with viewer-specific like state; return null when absent. */
+export async function getThread(
+  db: Db,
+  viewerId: string | null,
+  threadId: number,
+): Promise<ThreadView | null> {
   const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
     `${THREAD_SELECT}
      WHERE t.id = ?`,
@@ -116,7 +149,14 @@ export async function getThread(db: Db, viewerId: string | null, threadId: numbe
 /** Called inside a transaction together with the image insert (see actions/threads.ts). */
 export async function createThread(
   db: Db,
-  t: { authorId: string; topicId: number; body: string | null; imageId: number | null },
+  t: {
+    authorId: string;
+    topicId: number; /** Optional plain-text content; null means image-only content. */
+    body:
+      | string
+      | null; /** Shared image identifier; null uses the no-image presentation. */
+    imageId: number | null;
+  },
 ): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO threads (author_id, topic_id, body, image_id)
@@ -135,7 +175,13 @@ export async function updateThread(
   db: Db,
   threadId: number,
   authorId: string,
-  t: { body: string | null; imageId: number | null },
+  t: {
+    /** Optional plain-text content; null means image-only content. */
+    body:
+      | string
+      | null; /** Shared image identifier; null uses the no-image presentation. */
+    imageId: number | null;
+  },
 ): Promise<boolean> {
   const [result] = await db.execute<ResultSetHeader>(
     `UPDATE threads
@@ -147,7 +193,11 @@ export async function updateThread(
 }
 
 /** Comments, likes and collection entries go with it via ON DELETE CASCADE. */
-export async function deleteThread(db: Db, threadId: number, authorId: string): Promise<boolean> {
+export async function deleteThread(
+  db: Db,
+  threadId: number,
+  authorId: string,
+): Promise<boolean> {
   const [result] = await db.execute<ResultSetHeader>(
     "DELETE FROM threads WHERE id = ? AND author_id = ?",
     [threadId, authorId],

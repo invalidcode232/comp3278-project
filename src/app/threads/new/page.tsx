@@ -1,11 +1,20 @@
 import { createThreadAction } from "@/actions/threads";
 import { ActionForm } from "@/components/ActionForm";
-import { ContentFields } from "@/components/bits";
+import { ContentFields } from "@/components/ContentFields";
 import { requireUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { listTopics } from "@/lib/queries/topics";
 
-export default async function NewThreadPage({ searchParams }: { searchParams: Promise<{ topic?: string }> }) {
+/** Require login and render thread creation with seeded topic choices. */
+export default async function NewThreadPage({
+  searchParams,
+}: {
+  /** Asynchronous URL query parameters supplied by Next.js. */
+  searchParams: Promise<{
+    /** Optional topic selection for the creation form. */
+    topic?: string;
+  }>;
+}) {
   await requireUser();
   const { topic } = await searchParams;
   const topics = await listTopics(pool);
@@ -15,11 +24,23 @@ export default async function NewThreadPage({ searchParams }: { searchParams: Pr
       <h1 className="mb-4 text-xl font-semibold">New thread</h1>
       <ActionForm action={createThreadAction} submitLabel="Post thread">
         <div>
-          <label className="label" htmlFor="topic_id">Topic</label>
-          <select id="topic_id" name="topic_id" required defaultValue={topic ?? ""} className="input">
-            <option value="" disabled>Choose a topic…</option>
+          <label className="label" htmlFor="topic_id">
+            Topic
+          </label>
+          <select
+            id="topic_id"
+            name="topic_id"
+            required
+            defaultValue={topic ?? ""}
+            className="input"
+          >
+            <option value="" disabled>
+              Choose a topic…
+            </option>
             {topics.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
             ))}
           </select>
         </div>

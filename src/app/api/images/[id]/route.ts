@@ -7,7 +7,18 @@ import { parseId } from "@/lib/validate";
  * An image row never changes (its content is its SHA-256), so browsers may
  * cache it forever; the ETag lets them revalidate with a 304.
  */
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: Request,
+  {
+    params,
+  }: {
+    /** Asynchronous route parameters supplied by Next.js. */
+    params: Promise<{
+      /** Stable identifier used to reference this record. */
+      id: string;
+    }>;
+  },
+) {
   const imageId = parseId((await params).id);
   if (!imageId) return new Response("Not found", { status: 404 });
 

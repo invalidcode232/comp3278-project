@@ -1,14 +1,21 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { Db } from "../db";
 
+/** Stored image payload and response metadata retrieved from MySQL. */
 export interface ImageRow {
+  /** Detected image media type used in the HTTP response. */
   mime_type: string;
+  /** Unique hexadecimal SHA-256 digest of the stored bytes. */
   sha256: string;
+  /** Original image bytes loaded from the BLOB column. */
   data: Buffer;
 }
 
 /** Cheap lookup by hash, so a duplicate upload doesn't resend the BLOB. */
-export async function findImageIdByHash(db: Db, sha256: string): Promise<number | null> {
+export async function findImageIdByHash(
+  db: Db,
+  sha256: string,
+): Promise<number | null> {
   const [rows] = await db.execute<RowDataPacket[]>(
     "SELECT id FROM images WHERE sha256 = ?",
     [sha256],
@@ -24,7 +31,13 @@ export async function findImageIdByHash(db: Db, sha256: string): Promise<number 
  */
 export async function insertImage(
   db: Db,
-  img: { sha256: string; mimeType: string; byteSize: number; data: Buffer },
+  img: {
+    /** Unique hexadecimal SHA-256 digest of the stored bytes. */
+    sha256: string;
+    mimeType: string;
+    byteSize: number; /** Original image bytes loaded from the BLOB column. */
+    data: Buffer;
+  },
 ): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO images (sha256, mime_type, byte_size, data)

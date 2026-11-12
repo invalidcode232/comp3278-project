@@ -11,7 +11,12 @@ import type { Db } from "../db";
  * meanwhile) into a warning; the DELETE then does nothing, which is harmless.
  * Returns true if the viewer now likes it.
  */
-export async function toggleThreadLike(db: Db, userId: string, threadId: number): Promise<boolean> {
+/** Insert or remove the user/thread pair and return the resulting liked state. */
+export async function toggleThreadLike(
+  db: Db,
+  userId: string,
+  threadId: number,
+): Promise<boolean> {
   const [ins] = await db.execute<ResultSetHeader>(
     "INSERT IGNORE INTO thread_likes (user_id, thread_id) VALUES (?, ?)",
     [userId, threadId],
@@ -24,7 +29,12 @@ export async function toggleThreadLike(db: Db, userId: string, threadId: number)
   return false;
 }
 
-export async function toggleCommentLike(db: Db, userId: string, commentId: number): Promise<boolean> {
+/** Insert or remove the user/comment pair and return the resulting liked state. */
+export async function toggleCommentLike(
+  db: Db,
+  userId: string,
+  commentId: number,
+): Promise<boolean> {
   const [ins] = await db.execute<ResultSetHeader>(
     "INSERT IGNORE INTO comment_likes (user_id, comment_id) VALUES (?, ?)",
     [userId, commentId],

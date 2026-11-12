@@ -1,6 +1,13 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { MAX_IMAGE_BYTES } from "@/lib/limits";
 import type { FormState } from "@/lib/validate";
 
@@ -17,11 +24,17 @@ export function ActionForm({
   buttonClassName = "btn",
   resetOnSuccess = false,
 }: {
+  /** Server Action invoked with the previous result and submitted form fields. */
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
+  /** Nested content rendered inside this component. */
   children: ReactNode;
+  /** Text on the idle submit button. */
   submitLabel: string;
+  /** Optional CSS classes replacing the component’s default container classes. */
   className?: string;
+  /** Optional CSS classes for the submit button. */
   buttonClassName?: string;
+  /** Whether to clear uncontrolled inputs after a successful result. */
   resetOnSuccess?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
@@ -42,8 +55,13 @@ export function ActionForm({
         e.preventDefault();
         // Check file sizes before uploading, so an oversized file never hits
         // the Server Action body limit. The server checks again (upload.ts).
-        const inputs = e.currentTarget.querySelectorAll<HTMLInputElement>("input[type=file]");
-        const tooBig = [...inputs].some((i) => [...(i.files ?? [])].some((f) => f.size > MAX_IMAGE_BYTES));
+        const inputs =
+          e.currentTarget.querySelectorAll<HTMLInputElement>(
+            "input[type=file]",
+          );
+        const tooBig = [...inputs].some((i) =>
+          [...(i.files ?? [])].some((f) => f.size > MAX_IMAGE_BYTES),
+        );
         if (tooBig) {
           setClientError("Images must be 5 MB or smaller.");
           return;
@@ -55,7 +73,9 @@ export function ActionForm({
     >
       {children}
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {!error && state?.ok && <p className="text-sm text-green-700">{state.ok}</p>}
+      {!error && state?.ok && (
+        <p className="text-sm text-green-700">{state.ok}</p>
+      )}
       <button type="submit" disabled={pending} className={buttonClassName}>
         {pending ? "Working…" : submitLabel}
       </button>

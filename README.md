@@ -183,7 +183,7 @@ Other scripts: `npm run typecheck` runs `tsc --noEmit`.
     │   ├── validate.ts         # form parsing helpers
     │   └── format.ts
     ├── actions/                # Server Actions: validate input → call queries/*
-    ├── components/             # ThreadCard, ActionForm, ConfirmButton, Avatar…
+    ├── components/             # One component per file: ThreadCard, ThreadList, ActionForm, Avatar…
     └── app/                    # pages (App Router) + api/images/[id]/route.ts
 ```
 

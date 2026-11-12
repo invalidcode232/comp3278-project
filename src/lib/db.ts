@@ -14,6 +14,7 @@ declare global {
   var __mysqlPool: Pool | undefined;
 }
 
+/** Create a bounded MySQL pool with UTC decoding and UTC server sessions; connection errors propagate. */
 function createPool(): Pool {
   const pool = mysql.createPool({
     host: process.env.DB_HOST ?? "127.0.0.1",
@@ -32,10 +33,13 @@ function createPool(): Pool {
   return pool;
 }
 
-export const pool: Pool = globalThis.__mysqlPool ?? (globalThis.__mysqlPool = createPool());
+export const pool: Pool =
+  globalThis.__mysqlPool ?? (globalThis.__mysqlPool = createPool());
 
 /** Run fn inside BEGIN ... COMMIT on one connection; ROLLBACK if it throws. */
-export async function withTransaction<T>(fn: (conn: PoolConnection) => Promise<T>): Promise<T> {
+export async function withTransaction<T>(
+  fn: (conn: PoolConnection) => Promise<T>,
+): Promise<T> {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -51,6 +55,13 @@ export async function withTransaction<T>(fn: (conn: PoolConnection) => Promise<T
 }
 
 /** True if err is a MySQL error with the given code, e.g. "ER_DUP_ENTRY". */
-export function isMysqlError(err: unknown, code: string): err is Error & { code: string; sqlMessage?: string } {
-  return typeof err === "object" && err !== null && (err as { code?: unknown }).code === code;
+export function isMysqlError(
+  err: unknown,
+  code: string,
+): err is Error & { code: string; sqlMessage?: string } {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === code
+  );
 }

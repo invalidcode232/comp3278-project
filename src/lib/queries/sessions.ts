@@ -3,14 +3,24 @@ import type { Db } from "../db";
 
 export const SESSION_DAYS = 30;
 
+/** Minimal authenticated-user projection shared by server pages and actions. */
 export interface SessionUser {
+  /** Stable identifier used to reference this record. */
   id: string;
+  /** Public account handle used in profile URLs. */
   handle: string;
+  /** Human-readable account name shown in the UI. */
   display_name: string;
+  /** Shared avatar image ID, or null for the initial fallback. */
   avatar_image_id: number | null;
 }
 
-export async function createSession(db: Db, token: string, userId: string): Promise<void> {
+/** Store a browser token with a 30-day database expiry for the supplied user. */
+export async function createSession(
+  db: Db,
+  token: string,
+  userId: string,
+): Promise<void> {
   await db.execute(
     `INSERT INTO sessions (token, user_id, expires_at)
      VALUES (?, ?, UTC_TIMESTAMP() + INTERVAL 30 DAY)`,
@@ -19,7 +29,10 @@ export async function createSession(db: Db, token: string, userId: string): Prom
 }
 
 /** The logged-in user for a cookie token, or null if the token is unknown or expired. */
-export async function getSessionUser(db: Db, token: string): Promise<SessionUser | null> {
+export async function getSessionUser(
+  db: Db,
+  token: string,
+): Promise<SessionUser | null> {
   const [rows] = await db.execute<(SessionUser & RowDataPacket)[]>(
     `SELECT u.id, u.handle, u.display_name, u.avatar_image_id
      FROM sessions s
@@ -30,12 +43,16 @@ export async function getSessionUser(db: Db, token: string): Promise<SessionUser
   return rows[0] ?? null;
 }
 
+/** Revoke one browser token; missing sessions are harmless. */
 export async function deleteSession(db: Db, token: string): Promise<void> {
   await db.execute("DELETE FROM sessions WHERE token = ?", [token]);
 }
 
 /** Housekeeping on each login: drop this user's expired sessions. */
-export async function deleteExpiredSessions(db: Db, userId: string): Promise<void> {
+export async function deleteExpiredSessions(
+  db: Db,
+  userId: string,
+): Promise<void> {
   await db.execute(
     "DELETE FROM sessions WHERE user_id = ? AND expires_at <= UTC_TIMESTAMP()",
     [userId],

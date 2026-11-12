@@ -8,8 +8,11 @@ export function ConfirmButton({
   children,
   className = "btn-danger",
 }: {
+  /** Confirmation prompt shown before the form is submitted. */
   message: string;
+  /** Nested content rendered inside this component. */
   children: ReactNode;
+  /** Optional CSS classes replacing the component’s default container classes. */
   className?: string;
 }) {
   return (

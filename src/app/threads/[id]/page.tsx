@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { removeFromCollectionAction, saveToCollectionAction } from "@/actions/collections";
-import { createCommentAction, deleteCommentAction, updateCommentAction } from "@/actions/comments";
+import {
+  removeFromCollectionAction,
+  saveToCollectionAction,
+} from "@/actions/collections";
+import {
+  createCommentAction,
+  deleteCommentAction,
+  updateCommentAction,
+} from "@/actions/comments";
 import { toggleCommentLikeAction } from "@/actions/likes";
 import { ActionForm } from "@/components/ActionForm";
-import { Avatar, ContentFields, PostImage, Stamp } from "@/components/bits";
+import { Avatar } from "@/components/Avatar";
+import { ContentFields } from "@/components/ContentFields";
+import { PostImage } from "@/components/PostImage";
+import { Stamp } from "@/components/Stamp";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { ThreadCard } from "@/components/ThreadCard";
 import { getCurrentUser } from "@/lib/auth";
@@ -14,11 +24,17 @@ import { listComments } from "@/lib/queries/comments";
 import { getThread } from "@/lib/queries/threads";
 import { parseId } from "@/lib/validate";
 
+/** Render one thread, comments, and viewer-owned collection controls; return not-found for an invalid thread. */
 export default async function ThreadPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  /** Asynchronous route parameters supplied by Next.js. */
+  params: Promise<{
+    /** Stable identifier used to reference this record. */
+    id: string;
+  }>;
+  /** Asynchronous URL query parameters supplied by Next.js. */
   searchParams: Promise<{ editComment?: string }>;
 }) {
   const threadId = parseId((await params).id);
@@ -43,16 +59,29 @@ export default async function ThreadPage({
           <h2 className="mb-2 text-sm font-semibold">Collections</h2>
           {collections.length === 0 ? (
             <p className="muted">
-              You have no collections. <Link href="/collections" className="link">Create one</Link> to save threads.
+              You have no collections.{" "}
+              <Link href="/collections" className="link">
+                Create one
+              </Link>{" "}
+              to save threads.
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {collections.map((c) => (
-                <form key={c.id} action={c.has_thread ? removeFromCollectionAction : saveToCollectionAction}>
+                <form
+                  key={c.id}
+                  action={
+                    c.has_thread
+                      ? removeFromCollectionAction
+                      : saveToCollectionAction
+                  }
+                >
                   <input type="hidden" name="collection_id" value={c.id} />
                   <input type="hidden" name="thread_id" value={thread.id} />
                   <button className={c.has_thread ? "btn" : "btn-secondary"}>
-                    {c.has_thread ? `✓ In “${c.name}” (remove)` : `+ Save to “${c.name}”`}
+                    {c.has_thread
+                      ? `✓ In “${c.name}” (remove)`
+                      : `+ Save to “${c.name}”`}
                   </button>
                 </form>
               ))}
@@ -69,28 +98,55 @@ export default async function ThreadPage({
           return (
             <div key={c.id} id={`c${c.id}`} className="card">
               <div className="flex items-center gap-2">
-                <Avatar imageId={c.avatar_image_id} name={c.display_name} size={32} />
-                <Link href={`/u/${c.handle}`} className="text-sm font-medium hover:underline">{c.display_name}</Link>
+                <Avatar
+                  imageId={c.avatar_image_id}
+                  name={c.display_name}
+                  size={32}
+                />
+                <Link
+                  href={`/u/${c.handle}`}
+                  className="text-sm font-medium hover:underline"
+                >
+                  {c.display_name}
+                </Link>
                 <span className="muted">@{c.handle} ·</span>
                 <Stamp at={c.created_at} edited={c.edited} />
               </div>
               {editing ? (
                 <div className="mt-3">
-                  <ActionForm action={updateCommentAction} submitLabel="Save comment">
+                  <ActionForm
+                    action={updateCommentAction}
+                    submitLabel="Save comment"
+                  >
                     <input type="hidden" name="comment_id" value={c.id} />
-                    <ContentFields defaultBody={c.body} currentImageId={c.image_id} rows={3} />
+                    <ContentFields
+                      defaultBody={c.body}
+                      currentImageId={c.image_id}
+                      rows={3}
+                    />
                   </ActionForm>
-                  <Link href={`/threads/${thread.id}#c${c.id}`} className="link mt-2 inline-block text-sm">Cancel</Link>
+                  <Link
+                    href={`/threads/${thread.id}#c${c.id}`}
+                    className="link mt-2 inline-block text-sm"
+                  >
+                    Cancel
+                  </Link>
                 </div>
               ) : (
                 <>
-                  {c.body && <p className="mt-2 whitespace-pre-wrap break-words">{c.body}</p>}
+                  {c.body && (
+                    <p className="mt-2 whitespace-pre-wrap break-words">
+                      {c.body}
+                    </p>
+                  )}
                   {c.image_id && <PostImage imageId={c.image_id} />}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {me ? (
                       <form action={toggleCommentLikeAction}>
                         <input type="hidden" name="comment_id" value={c.id} />
-                        <button className={c.liked_by_me ? "btn" : "btn-secondary"}>
+                        <button
+                          className={c.liked_by_me ? "btn" : "btn-secondary"}
+                        >
                           {c.liked_by_me ? "♥" : "♡"} {c.like_count}
                         </button>
                       </form>
@@ -99,10 +155,17 @@ export default async function ThreadPage({
                     )}
                     {mine && (
                       <>
-                        <Link href={`/threads/${thread.id}?editComment=${c.id}#c${c.id}`} className="btn-secondary">Edit</Link>
+                        <Link
+                          href={`/threads/${thread.id}?editComment=${c.id}#c${c.id}`}
+                          className="btn-secondary"
+                        >
+                          Edit
+                        </Link>
                         <form action={deleteCommentAction}>
                           <input type="hidden" name="comment_id" value={c.id} />
-                          <ConfirmButton message="Delete this comment?">Delete</ConfirmButton>
+                          <ConfirmButton message="Delete this comment?">
+                            Delete
+                          </ConfirmButton>
                         </form>
                       </>
                     )}
@@ -116,13 +179,22 @@ export default async function ThreadPage({
         {me ? (
           <div className="card">
             <h3 className="mb-2 text-sm font-semibold">Add a comment</h3>
-            <ActionForm action={createCommentAction} submitLabel="Comment" resetOnSuccess>
+            <ActionForm
+              action={createCommentAction}
+              submitLabel="Comment"
+              resetOnSuccess
+            >
               <input type="hidden" name="thread_id" value={thread.id} />
               <ContentFields rows={3} placeholder="Write a comment…" />
             </ActionForm>
           </div>
         ) : (
-          <p className="muted"><Link href="/login" className="link">Log in</Link> to comment.</p>
+          <p className="muted">
+            <Link href="/login" className="link">
+              Log in
+            </Link>{" "}
+            to comment.
+          </p>
         )}
       </section>
     </div>

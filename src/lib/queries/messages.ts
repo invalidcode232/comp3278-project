@@ -1,23 +1,39 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { Db } from "../db";
 
+/** Latest-message projection for one partner in the viewer’s conversation list. */
 export interface ConversationRow {
+  /** Internal UUID of the conversation partner. */
   partner_id: string;
+  /** Public account handle used in profile URLs. */
   handle: string;
+  /** Human-readable account name shown in the UI. */
   display_name: string;
+  /** Shared avatar image ID, or null for the initial fallback. */
   avatar_image_id: number | null;
+  /** Numeric identifier of the latest message for this partner. */
   last_message_id: number;
+  /** Internal UUID that sent the latest message. */
   last_sender_id: string;
+  /** Latest message text, or null for image-only content. */
   last_body: string | null;
+  /** Latest message attachment ID, or null. */
   last_image_id: number | null;
+  /** UTC timestamp of the latest message. */
   last_created_at: Date;
 }
 
+/** Message projection ordered within a conversation; nullable body/image support either content form. */
 export interface MessageRow {
+  /** Stable identifier used to reference this record. */
   id: number;
+  /** Internal UUID of the message sender. */
   sender_id: string;
+  /** Optional plain-text content; null means image-only content. */
   body: string | null;
+  /** Shared attachment image ID, or null for text-only content. */
   image_id: number | null;
+  /** Creation timestamp decoded as a Date from UTC storage. */
   created_at: Date;
 }
 
@@ -31,7 +47,10 @@ export interface MessageRow {
  *  3. Keep rn = 1 (the latest per partner), join the partner's profile.
  * CHECK (sender_id <> recipient_id) guarantees no message appears in both branches.
  */
-export async function listConversations(db: Db, userId: string): Promise<ConversationRow[]> {
+export async function listConversations(
+  db: Db,
+  userId: string,
+): Promise<ConversationRow[]> {
   const [rows] = await db.execute<(ConversationRow & RowDataPacket)[]>(
     `WITH my_messages AS (
        SELECT id, sender_id, body, image_id, created_at, recipient_id AS partner_id
@@ -60,7 +79,11 @@ export async function listConversations(db: Db, userId: string): Promise<Convers
 }
 
 /** Every message between two users in either direction, oldest first. */
-export async function listConversation(db: Db, userId: string, partnerId: string): Promise<MessageRow[]> {
+export async function listConversation(
+  db: Db,
+  userId: string,
+  partnerId: string,
+): Promise<MessageRow[]> {
   const [rows] = await db.execute<(MessageRow & RowDataPacket)[]>(
     `SELECT id, sender_id, body, image_id, created_at
      FROM messages
@@ -72,9 +95,17 @@ export async function listConversation(db: Db, userId: string, partnerId: string
   return rows;
 }
 
+/** Insert validated sender/recipient content and return the generated message ID; caller owns the upload transaction. */
 export async function sendMessage(
   db: Db,
-  m: { senderId: string; recipientId: string; body: string | null; imageId: number | null },
+  m: {
+    senderId: string;
+    recipientId: string; /** Optional plain-text content; null means image-only content. */
+    body:
+      | string
+      | null; /** Shared image identifier; null uses the no-image presentation. */
+    imageId: number | null;
+  },
 ): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO messages (sender_id, recipient_id, body, image_id)

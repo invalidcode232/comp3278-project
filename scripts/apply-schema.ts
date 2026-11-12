@@ -5,6 +5,7 @@
 import { readFile } from "node:fs/promises";
 import mysql from "mysql2/promise";
 
+/** Apply the destructive development schema only when the configured database name matches; close the connection on all paths. */
 async function main(): Promise<void> {
   const schemaPath = new URL("../db/schema.sql", import.meta.url);
   const sql = await readFile(schemaPath, "utf8");
@@ -12,7 +13,9 @@ async function main(): Promise<void> {
   const dbName = /CREATE DATABASE\s+(\w+)/i.exec(sql)?.[1];
   const wanted = process.env.DB_NAME ?? "comp3278_social";
   if (dbName !== wanted) {
-    throw new Error(`DB_NAME in .env is "${wanted}" but db/schema.sql creates "${dbName}". Set DB_NAME=${dbName}.`);
+    throw new Error(
+      `DB_NAME in .env is "${wanted}" but db/schema.sql creates "${dbName}". Set DB_NAME=${dbName}.`,
+    );
   }
 
   // No `database` option: the database may not exist yet.
@@ -25,14 +28,20 @@ async function main(): Promise<void> {
     multipleStatements: true,
   });
   try {
-    const [version] = await conn.query<mysql.RowDataPacket[]>("SELECT VERSION() AS v");
-    console.log(`Connected to MySQL ${version[0].v} at ${process.env.DB_HOST}:${process.env.DB_PORT}`);
+    const [version] = await conn.query<mysql.RowDataPacket[]>(
+      "SELECT VERSION() AS v",
+    );
+    console.log(
+      `Connected to MySQL ${version[0].v} at ${process.env.DB_HOST}:${process.env.DB_PORT}`,
+    );
     await conn.query(sql);
     const [tables] = await conn.query<mysql.RowDataPacket[]>(
       "SELECT table_name AS t FROM information_schema.tables WHERE table_schema = ? ORDER BY table_name",
       [dbName],
     );
-    console.log(`Created database ${dbName} with ${tables.length} tables: ${tables.map((r) => r.t).join(", ")}`);
+    console.log(
+      `Created database ${dbName} with ${tables.length} tables: ${tables.map((r) => r.t).join(", ")}`,
+    );
   } finally {
     await conn.end();
   }

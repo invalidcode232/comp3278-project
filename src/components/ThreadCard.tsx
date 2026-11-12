@@ -4,16 +4,22 @@ import { deleteThreadAction } from "@/actions/threads";
 import { toggleThreadLikeAction } from "@/actions/likes";
 import type { SessionUser } from "@/lib/queries/sessions";
 import type { ThreadView } from "@/lib/queries/threads";
-import { Avatar, PostImage, Stamp } from "./bits";
+import { Avatar } from "@/components/Avatar";
+import { PostImage } from "@/components/PostImage";
+import { Stamp } from "@/components/Stamp";
 import { ConfirmButton } from "./ConfirmButton";
 
+/** Render one thread with counts and viewer-dependent controls; server actions enforce ownership. */
 export function ThreadCard({
   thread: t,
   viewer,
   extra,
 }: {
+  /** Query projection rendered as a thread card. */
   thread: ThreadView;
+  /** Authenticated viewer, or null for a public visitor. */
   viewer: SessionUser | null;
+  /** Optional controls appended to the thread card footer. */
   extra?: ReactNode;
 }) {
   const mine = viewer?.id === t.author_id;
@@ -32,12 +38,17 @@ export function ThreadCard({
             </Link>
           </div>
         </div>
-        <Link href={`/topics/${t.topic_id}`} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-200">
+        <Link
+          href={`/topics/${t.topic_id}`}
+          className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-200"
+        >
           {t.topic_name}
         </Link>
       </header>
 
-      {t.body && <p className="mt-3 whitespace-pre-wrap break-words">{t.body}</p>}
+      {t.body && (
+        <p className="mt-3 whitespace-pre-wrap break-words">{t.body}</p>
+      )}
       {t.image_id && <PostImage imageId={t.image_id} />}
 
       <footer className="mt-3 flex flex-wrap items-center gap-2">
@@ -61,23 +72,14 @@ export function ThreadCard({
             </Link>
             <form action={deleteThreadAction}>
               <input type="hidden" name="thread_id" value={t.id} />
-              <ConfirmButton message="Delete this thread and all its comments?">Delete</ConfirmButton>
+              <ConfirmButton message="Delete this thread and all its comments?">
+                Delete
+              </ConfirmButton>
             </form>
           </>
         )}
         {extra}
       </footer>
     </article>
-  );
-}
-
-export function ThreadList({ threads, viewer, empty }: { threads: ThreadView[]; viewer: SessionUser | null; empty: string }) {
-  if (threads.length === 0) return <p className="muted">{empty}</p>;
-  return (
-    <div className="space-y-3">
-      {threads.map((t) => (
-        <ThreadCard key={t.id} thread={t} viewer={viewer} />
-      ))}
-    </div>
   );
 }

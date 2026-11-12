@@ -3,7 +3,13 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { pool } from "./db";
-import { createSession, deleteExpiredSessions, deleteSession, getSessionUser, SESSION_DAYS } from "./queries/sessions";
+import {
+  createSession,
+  deleteExpiredSessions,
+  deleteSession,
+  getSessionUser,
+  SESSION_DAYS,
+} from "./queries/sessions";
 import type { SessionUser } from "./queries/sessions";
 
 const COOKIE = "sid";
@@ -36,6 +42,7 @@ export async function startSession(userId: string): Promise<void> {
   });
 }
 
+/** Delete the current cookie’s session row and remove the browser cookie. */
 export async function endSession(): Promise<void> {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;

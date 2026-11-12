@@ -1,15 +1,23 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { Db } from "../db";
 
+/** Owner-scoped collection summary with its computed saved-thread count. */
 export interface CollectionRow {
+  /** Stable identifier used to reference this record. */
   id: number;
+  /** Human-readable label displayed for this record. */
   name: string;
+  /** Creation timestamp decoded as a Date from UTC storage. */
   created_at: Date;
+  /** Computed number of associated threads; not a stored counter. */
   thread_count: number;
 }
 
 /** The owner's collections with how many threads each holds. */
-export async function listCollections(db: Db, ownerId: string): Promise<CollectionRow[]> {
+export async function listCollections(
+  db: Db,
+  ownerId: string,
+): Promise<CollectionRow[]> {
   const [rows] = await db.execute<(CollectionRow & RowDataPacket)[]>(
     `SELECT c.id, c.name, c.created_at, COUNT(ct.thread_id) AS thread_count
      FROM collections c
@@ -22,11 +30,16 @@ export async function listCollections(db: Db, ownerId: string): Promise<Collecti
   return rows;
 }
 
+/** Find a collection only when it belongs to the supplied owner; return null otherwise. */
 export async function getCollection(
   db: Db,
   ownerId: string,
   collectionId: number,
-): Promise<{ id: number; name: string } | null> {
+): Promise<{
+  /** Stable identifier used to reference this record. */
+  id: number; /** Human-readable label displayed for this record. */
+  name: string;
+} | null> {
   const [rows] = await db.execute<RowDataPacket[]>(
     "SELECT id, name FROM collections WHERE id = ? AND owner_id = ?",
     [collectionId, ownerId],
@@ -39,7 +52,14 @@ export async function listCollectionsForThread(
   db: Db,
   ownerId: string,
   threadId: number,
-): Promise<{ id: number; name: string; has_thread: number }[]> {
+): Promise<
+  {
+    /** Stable identifier used to reference this record. */
+    id: number; /** Human-readable label displayed for this record. */
+    name: string;
+    has_thread: number;
+  }[]
+> {
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT c.id, c.name,
             EXISTS (SELECT 1 FROM collection_threads ct
@@ -49,11 +69,20 @@ export async function listCollectionsForThread(
      ORDER BY c.name`,
     [threadId, ownerId],
   );
-  return rows as { id: number; name: string; has_thread: number }[];
+  return rows as {
+    /** Stable identifier used to reference this record. */
+    id: number; /** Human-readable label displayed for this record. */
+    name: string;
+    has_thread: number;
+  }[];
 }
 
 /** A duplicate name for the same owner raises ER_DUP_ENTRY on uq_collections_owner_name. */
-export async function createCollection(db: Db, ownerId: string, name: string): Promise<number> {
+export async function createCollection(
+  db: Db,
+  ownerId: string,
+  name: string,
+): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
     "INSERT INTO collections (owner_id, name) VALUES (?, ?)",
     [ownerId, name],
@@ -61,7 +90,13 @@ export async function createCollection(db: Db, ownerId: string, name: string): P
   return result.insertId;
 }
 
-export async function renameCollection(db: Db, ownerId: string, collectionId: number, name: string): Promise<boolean> {
+/** Update an owned collection’s name; return whether a row matched and propagate duplicate-name failures. */
+export async function renameCollection(
+  db: Db,
+  ownerId: string,
+  collectionId: number,
+  name: string,
+): Promise<boolean> {
   const [result] = await db.execute<ResultSetHeader>(
     "UPDATE collections SET name = ? WHERE id = ? AND owner_id = ?",
     [name, collectionId, ownerId],
@@ -70,7 +105,11 @@ export async function renameCollection(db: Db, ownerId: string, collectionId: nu
 }
 
 /** collection_threads rows go with it (ON DELETE CASCADE); the threads themselves stay. */
-export async function deleteCollection(db: Db, ownerId: string, collectionId: number): Promise<boolean> {
+export async function deleteCollection(
+  db: Db,
+  ownerId: string,
+  collectionId: number,
+): Promise<boolean> {
   const [result] = await db.execute<ResultSetHeader>(
     "DELETE FROM collections WHERE id = ? AND owner_id = ?",
     [collectionId, ownerId],

@@ -1,13 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ThreadList } from "@/components/ThreadCard";
+import { ThreadList } from "@/components/ThreadList";
 import { getCurrentUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { getTopic } from "@/lib/queries/topics";
 import { listTopicThreads } from "@/lib/queries/threads";
 import { parseId } from "@/lib/validate";
 
-export default async function TopicPage({ params }: { params: Promise<{ id: string }> }) {
+/** Resolve the topic and render its newest threads for the current viewer. */
+export default async function TopicPage({
+  params,
+}: {
+  /** Asynchronous route parameters supplied by Next.js. */
+  params: Promise<{
+    /** Stable identifier used to reference this record. */
+    id: string;
+  }>;
+}) {
   const topicId = parseId((await params).id);
   if (!topicId) notFound();
   const topic = await getTopic(pool, topicId);
@@ -23,10 +32,16 @@ export default async function TopicPage({ params }: { params: Promise<{ id: stri
           <p className="muted">{topic.description}</p>
         </div>
         {me && (
-          <Link href={`/threads/new?topic=${topic.id}`} className="btn">New thread here</Link>
+          <Link href={`/threads/new?topic=${topic.id}`} className="btn">
+            New thread here
+          </Link>
         )}
       </div>
-      <ThreadList threads={threads} viewer={me} empty="No threads in this topic yet." />
+      <ThreadList
+        threads={threads}
+        viewer={me}
+        empty="No threads in this topic yet."
+      />
     </div>
   );
 }

@@ -7,12 +7,14 @@ import { follow, unfollow } from "@/lib/queries/follows";
 import { getUserByHandle } from "@/lib/queries/users";
 import { str } from "@/lib/validate";
 
+/** Resolve the authenticated follower and submitted target UUID; reject self-following. */
 async function target(formData: FormData) {
   const user = await getUserByHandle(pool, str(formData, "handle"));
   if (!user) throw new Error("User not found");
   return user;
 }
 
+/** Add a following relationship for the authenticated user and refresh page data. */
 export async function followAction(formData: FormData): Promise<void> {
   const me = await requireUser();
   const user = await target(formData);
@@ -20,6 +22,7 @@ export async function followAction(formData: FormData): Promise<void> {
   revalidatePath("/", "layout");
 }
 
+/** Remove a following relationship for the authenticated user and refresh page data. */
 export async function unfollowAction(formData: FormData): Promise<void> {
   const me = await requireUser();
   const user = await target(formData);

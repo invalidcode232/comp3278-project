@@ -6,13 +6,19 @@ import { requireUser } from "@/lib/auth";
 import { toggleCommentLike, toggleThreadLike } from "@/lib/queries/likes";
 import { id } from "@/lib/validate";
 
-export async function toggleThreadLikeAction(formData: FormData): Promise<void> {
+/** Toggle the authenticated user’s like on the submitted thread and refresh counts. */
+export async function toggleThreadLikeAction(
+  formData: FormData,
+): Promise<void> {
   const me = await requireUser();
   await toggleThreadLike(pool, me.id, id(formData.get("thread_id")));
   revalidatePath("/", "layout");
 }
 
-export async function toggleCommentLikeAction(formData: FormData): Promise<void> {
+/** Toggle the authenticated user’s like on the submitted comment and refresh counts. */
+export async function toggleCommentLikeAction(
+  formData: FormData,
+): Promise<void> {
   const me = await requireUser();
   await toggleCommentLike(pool, me.id, id(formData.get("comment_id")));
   revalidatePath("/", "layout");

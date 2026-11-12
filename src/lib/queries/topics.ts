@@ -1,13 +1,19 @@
 import type { RowDataPacket } from "mysql2/promise";
 import type { Db } from "../db";
 
+/** Seeded topic identity and descriptive text. */
 export interface TopicRow {
+  /** Stable identifier used to reference this record. */
   id: number;
+  /** Human-readable label displayed for this record. */
   name: string;
+  /** Descriptive text shown beneath the topic name. */
   description: string;
 }
 
+/** Seeded topic projection extended with the current number of threads. */
 export interface TopicWithCount extends TopicRow {
+  /** Computed number of associated threads; not a stored counter. */
   thread_count: number;
 }
 
@@ -23,6 +29,7 @@ export async function listTopicsWithCounts(db: Db): Promise<TopicWithCount[]> {
   return rows;
 }
 
+/** Read the seeded topic choices in name order. */
 export async function listTopics(db: Db): Promise<TopicRow[]> {
   const [rows] = await db.execute<(TopicRow & RowDataPacket)[]>(
     "SELECT id, name, description FROM topics ORDER BY name",
@@ -30,6 +37,7 @@ export async function listTopics(db: Db): Promise<TopicRow[]> {
   return rows;
 }
 
+/** Find a seeded topic by numeric ID; return null when missing. */
 export async function getTopic(db: Db, id: number): Promise<TopicRow | null> {
   const [rows] = await db.execute<(TopicRow & RowDataPacket)[]>(
     "SELECT id, name, description FROM topics WHERE id = ?",
