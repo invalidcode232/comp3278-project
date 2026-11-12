@@ -11,7 +11,10 @@ export interface ImageRow {
   data: Buffer;
 }
 
-/** Cheap lookup by hash, so a duplicate upload doesn't resend the BLOB. */
+/** Cheap lookup by hash, so a duplicate upload doesn't resend the BLOB.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param sha256 Hexadecimal SHA-256 digest of the image bytes.
+ */
 export async function findImageIdByHash(
   db: Db,
   sha256: string,
@@ -28,14 +31,23 @@ export async function findImageIdByHash(
  * key fires ON DUPLICATE KEY UPDATE, and `id = LAST_INSERT_ID(id)` makes
  * insertId return the existing row's id instead of a new one.
  * This is also race-safe if two identical uploads arrive at the same moment.
+ *
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param img Validated image bytes and matching hash/type/length metadata.
  */
 export async function insertImage(
   db: Db,
   img: {
     /** Unique hexadecimal SHA-256 digest of the stored bytes. */
     sha256: string;
+
+    /** Detected image content type, not the untrusted browser MIME label. */
     mimeType: string;
-    byteSize: number; /** Original image bytes loaded from the BLOB column. */
+
+    /** Exact payload length in bytes, validated against the BLOB length. */
+    byteSize: number;
+
+    /** Original image bytes loaded from the BLOB column. */
     data: Buffer;
   },
 ): Promise<number> {
@@ -48,7 +60,10 @@ export async function insertImage(
   return result.insertId;
 }
 
-/** Used by GET /api/images/[id]. */
+/** Used by GET /api/images/[id].
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param id Stable identifier of the requested record.
+ */
 export async function getImage(db: Db, id: number): Promise<ImageRow | null> {
   const [rows] = await db.execute<(ImageRow & RowDataPacket)[]>(
     "SELECT mime_type, sha256, data FROM images WHERE id = ?",
@@ -90,6 +105,8 @@ export async function getVisibleImage(
  * Call only inside withImageTransaction, after all reference changes. Its shared
  * lock prevents another application mutation attaching an image during cleanup;
  * foreign keys provide a further integrity check. Returns deleted image count.
+ *
+ * @param db Pool or transaction connection used for all queries in this operation.
  */
 export async function deleteUnreferencedImages(db: Db): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(

@@ -17,7 +17,9 @@ export interface TopicWithCount extends TopicRow {
   thread_count: number;
 }
 
-/** LEFT JOIN keeps topics that have no threads yet (count 0). */
+/** LEFT JOIN keeps topics that have no threads yet (count 0).
+ * @param db Pool or transaction connection used for all queries in this operation.
+ */
 export async function listTopicsWithCounts(db: Db): Promise<TopicWithCount[]> {
   const [rows] = await db.execute<(TopicWithCount & RowDataPacket)[]>(
     `SELECT tp.id, tp.name, tp.description, COUNT(t.id) AS thread_count
@@ -29,7 +31,9 @@ export async function listTopicsWithCounts(db: Db): Promise<TopicWithCount[]> {
   return rows;
 }
 
-/** Read the seeded topic choices in name order. */
+/** Read the seeded topic choices in name order.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ */
 export async function listTopics(db: Db): Promise<TopicRow[]> {
   const [rows] = await db.execute<(TopicRow & RowDataPacket)[]>(
     "SELECT id, name, description FROM topics ORDER BY name",
@@ -37,7 +41,10 @@ export async function listTopics(db: Db): Promise<TopicRow[]> {
   return rows;
 }
 
-/** Find a seeded topic by numeric ID; return null when missing. */
+/** Find a seeded topic by numeric ID; return null when missing.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param id Stable identifier of the requested record.
+ */
 export async function getTopic(db: Db, id: number): Promise<TopicRow | null> {
   const [rows] = await db.execute<(TopicRow & RowDataPacket)[]>(
     "SELECT id, name, description FROM topics WHERE id = ?",

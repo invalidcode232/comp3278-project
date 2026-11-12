@@ -22,29 +22,32 @@ export default async function MessagesPage() {
         </p>
       ) : (
         <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
-          {conversations.map((c) => (
-            <li key={c.partner_id}>
-              <Link
-                href={`/messages/${c.handle}`}
-                className="flex items-center gap-3 p-3 hover:bg-gray-50"
-              >
-                <Avatar imageId={c.avatar_image_id} name={c.display_name} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="font-medium">
-                      {c.display_name}{" "}
-                      <span className="muted">@{c.handle}</span>
-                    </span>
-                    <Stamp at={c.last_created_at} />
+          {conversations.map(
+            /** Render one latest-message summary per conversation partner, including self. */
+            (c) => (
+              <li key={c.partner_id}>
+                <Link
+                  href={`/messages/${c.handle}`}
+                  className="flex items-center gap-3 p-3 hover:bg-gray-50"
+                >
+                  <Avatar imageId={c.avatar_image_id} name={c.display_name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-medium">
+                        {c.display_name}{" "}
+                        <span className="muted">@{c.handle}</span>
+                      </span>
+                      <Stamp at={c.last_created_at} />
+                    </div>
+                    <p className="truncate text-sm text-gray-600">
+                      {c.last_sender_id === me.id ? "You: " : ""}
+                      {c.last_body ?? (c.last_image_id ? "📷 Image" : "")}
+                    </p>
                   </div>
-                  <p className="truncate text-sm text-gray-600">
-                    {c.last_sender_id === me.id ? "You: " : ""}
-                    {c.last_body ?? (c.last_image_id ? "📷 Image" : "")}
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
+                </Link>
+              </li>
+            ),
+          )}
         </ul>
       )}
     </div>

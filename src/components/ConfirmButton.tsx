@@ -10,8 +10,10 @@ export function ConfirmButton({
 }: {
   /** Confirmation prompt shown before the form is submitted. */
   message: string;
+
   /** Nested content rendered inside this component. */
   children: ReactNode;
+
   /** Optional CSS classes replacing the component’s default container classes. */
   className?: string;
 }) {
@@ -19,9 +21,12 @@ export function ConfirmButton({
     <button
       type="submit"
       className={className}
-      onClick={(e) => {
-        if (!window.confirm(message)) e.preventDefault();
-      }}
+      onClick={
+        /** Cancel form submission when the user declines the confirmation prompt. */
+        (e) => {
+          if (!window.confirm(message)) e.preventDefault();
+        }
+      }
     >
       {children}
     </button>

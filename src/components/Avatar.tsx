@@ -7,8 +7,12 @@ export function Avatar({
   size = 40,
 }: {
   /** Shared image identifier; null uses the no-image presentation. */
-  imageId: number | null; /** Human-readable label displayed for this record. */
-  name: string; /** Square avatar dimension in CSS pixels; defaults to 40. */
+  imageId: number | null;
+
+  /** Human-readable label displayed for this record. */
+  name: string;
+
+  /** Square avatar dimension in CSS pixels; defaults to 40. */
   size?: number;
 }) {
   const style = { width: size, height: size };

@@ -10,10 +10,13 @@ export function ContentFields({
 }: {
   /** Initial text value for editing; null or absent starts empty. */
   defaultBody?: string | null;
+
   /** Existing image to preview and optionally remove during editing. */
   currentImageId?: number | null;
+
   /** Hint shown when the text field is empty. */
   placeholder?: string;
+
   /** Visible textarea row count. */
   rows?: number;
 }) {

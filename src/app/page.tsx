@@ -18,10 +18,12 @@ export default async function FeedPage({
   const me = await getCurrentUser();
   const following = tab === "following";
 
-  const tabClass = (active: boolean) =>
-    active
-      ? "border-b-2 border-indigo-600 pb-1 font-medium"
-      : "pb-1 text-gray-500 hover:text-gray-800";
+  const tabClass =
+    /** Select active-tab styling without changing the requested feed. */
+    (active: boolean) =>
+      active
+        ? "border-b-2 border-indigo-600 pb-1 font-medium"
+        : "pb-1 text-gray-500 hover:text-gray-800";
 
   return (
     <div className="space-y-4">

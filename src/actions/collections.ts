@@ -19,7 +19,9 @@ import {
   type FormState,
 } from "@/lib/validate";
 
-/** Read and trim a collection name; throw InputError unless it contains 1–50 code units. */
+/** Read and trim a collection name; throw InputError unless it contains 1–50 code units.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 function collectionName(formData: FormData): string {
   const name = str(formData, "name");
   if (name.length < 1 || name.length > 50)
@@ -27,7 +29,9 @@ function collectionName(formData: FormData): string {
   return name;
 }
 
-/** Convert expected collection validation/duplicate-name errors to form feedback; rethrow unexpected failures. */
+/** Convert expected collection validation/duplicate-name errors to form feedback; rethrow unexpected failures.
+ * @param err Caught failure; only expected input/constraint errors become user-facing feedback.
+ */
 function handle(err: unknown): FormState {
   if (isMysqlError(err, "ER_DUP_ENTRY"))
     return { error: "You already have a collection with that name." };
@@ -36,7 +40,10 @@ function handle(err: unknown): FormState {
   throw err;
 }
 
-/** Create a private collection for the authenticated user and refresh cached pages. */
+/** Create a private collection for the authenticated user and refresh cached pages.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function createCollectionAction(
   _prev: FormState,
   formData: FormData,
@@ -51,7 +58,10 @@ export async function createCollectionAction(
   return { ok: "Collection created." };
 }
 
-/** Rename only the authenticated user’s collection; return validation or duplicate-name feedback. */
+/** Rename only the authenticated user’s collection; return validation or duplicate-name feedback.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function renameCollectionAction(
   _prev: FormState,
   formData: FormData,
@@ -72,7 +82,9 @@ export async function renameCollectionAction(
   return { ok: "Renamed." };
 }
 
-/** Delete an owned collection and its saved links, preserve threads, and redirect to the collection list. */
+/** Delete an owned collection and its saved links, preserve threads, and redirect to the collection list.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function deleteCollectionAction(
   formData: FormData,
 ): Promise<void> {
@@ -82,7 +94,9 @@ export async function deleteCollectionAction(
   redirect("/collections");
 }
 
-/** Save a thread in an owned collection; repeated saves do not add duplicate links. */
+/** Save a thread in an owned collection; repeated saves do not add duplicate links.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function saveToCollectionAction(
   formData: FormData,
 ): Promise<void> {
@@ -96,7 +110,9 @@ export async function saveToCollectionAction(
   revalidatePath("/", "layout");
 }
 
-/** Remove an owned saved-thread link without deleting the thread. */
+/** Remove an owned saved-thread link without deleting the thread.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function removeFromCollectionAction(
   formData: FormData,
 ): Promise<void> {

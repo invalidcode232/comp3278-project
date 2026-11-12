@@ -39,26 +39,29 @@ export default async function CollectionPage({
         </p>
       ) : (
         <div className="space-y-3">
-          {threads.map((t) => (
-            <ThreadCard
-              key={t.id}
-              thread={t}
-              viewer={me}
-              extra={
-                <form action={removeFromCollectionAction}>
-                  <input
-                    type="hidden"
-                    name="collection_id"
-                    value={collection.id}
-                  />
-                  <input type="hidden" name="thread_id" value={t.id} />
-                  <button className="btn-secondary">
-                    Remove from collection
-                  </button>
-                </form>
-              }
-            />
-          ))}
+          {threads.map(
+            /** Render each saved thread with an owner-scoped remove-link action. */
+            (t) => (
+              <ThreadCard
+                key={t.id}
+                thread={t}
+                viewer={me}
+                extra={
+                  <form action={removeFromCollectionAction}>
+                    <input
+                      type="hidden"
+                      name="collection_id"
+                      value={collection.id}
+                    />
+                    <input type="hidden" name="thread_id" value={t.id} />
+                    <button className="btn-secondary">
+                      Remove from collection
+                    </button>
+                  </form>
+                }
+              />
+            ),
+          )}
         </div>
       )}
     </div>

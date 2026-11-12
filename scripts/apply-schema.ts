@@ -40,14 +40,25 @@ async function main(): Promise<void> {
       [dbName],
     );
     console.log(
-      `Created database ${dbName} with ${tables.length} tables: ${tables.map((r) => r.t).join(", ")}`,
+      `Created database ${dbName} with ${tables.length} tables: ${tables
+        .map(
+          /** Extract table names for the schema initialization summary. */
+          (r) => r.t,
+        )
+        .join(", ")}`,
     );
   } finally {
     await conn.end();
   }
 }
 
-main().catch((err: unknown) => {
-  console.error("db:schema failed:", err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+main().catch(
+  /** Report schema failure without connection secrets and exit unsuccessfully. */
+  (err: unknown) => {
+    console.error(
+      "db:schema failed:",
+      err instanceof Error ? err.message : err,
+    );
+    process.exit(1);
+  },
+);

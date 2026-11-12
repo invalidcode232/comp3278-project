@@ -17,11 +17,14 @@ import {
 } from "./session-policy";
 
 /** The logged-in user, or null. Cached so a page and its layout share one query. */
-export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
-  const token = (await cookies()).get(COOKIE)?.value;
-  if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  return getSessionUser(pool, token);
-});
+export const getCurrentUser = cache(
+  /** Resolve this request’s cookie to an unexpired account projection, or null. */
+  async (): Promise<SessionUser | null> => {
+    const token = (await cookies()).get(COOKIE)?.value;
+    if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
+    return getSessionUser(pool, token);
+  },
+);
 
 /** For pages and actions that need a login: redirect to /login otherwise. */
 export async function requireUser(): Promise<SessionUser> {
@@ -30,7 +33,9 @@ export async function requireUser(): Promise<SessionUser> {
   return user;
 }
 
-/** Create a session row and set the httpOnly cookie. Only callable from a Server Action. */
+/** Create a session row and set the httpOnly cookie. Only callable from a Server Action.
+ * @param userId Stable UUID of the account involved in the operation.
+ */
 export async function startSession(userId: string): Promise<void> {
   const token = randomBytes(32).toString("hex");
   await deleteExpiredSessions(pool, userId);

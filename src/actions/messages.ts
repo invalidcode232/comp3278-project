@@ -16,7 +16,10 @@ import {
   type FormState,
 } from "@/lib/validate";
 
-/** Resolve the recipient and atomically store the authenticated sender’s text/image message; return expected input errors. */
+/** Resolve the recipient and atomically store the authenticated sender’s text/image message; return expected input errors.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function sendMessageAction(
   _prev: FormState,
   formData: FormData,
@@ -29,15 +32,18 @@ export async function sendMessageAction(
     const file = getUploadedFile(formData);
     if (!body && !file)
       throw new InputError("A message needs text, an image, or both.");
-    await withImageTransaction(async (conn) => {
-      const imageId = file ? await saveImage(conn, file) : null;
-      await sendMessage(conn, {
-        senderId: me.id,
-        recipientId: recipient.id,
-        body,
-        imageId,
-      });
-    });
+    await withImageTransaction(
+      /** Store the optional BLOB and its message reference atomically. */
+      async (conn) => {
+        const imageId = file ? await saveImage(conn, file) : null;
+        await sendMessage(conn, {
+          senderId: me.id,
+          recipientId: recipient.id,
+          body,
+          imageId,
+        });
+      },
+    );
   } catch (err) {
     const msg = errorMessage(err);
     if (msg) return { error: msg };

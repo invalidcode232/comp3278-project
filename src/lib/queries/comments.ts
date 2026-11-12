@@ -29,7 +29,11 @@ export interface CommentView {
   liked_by_me: number;
 }
 
-/** Comments on a thread, oldest first, with like count and "liked by me". */
+/** Comments on a thread, oldest first, with like count and "liked by me".
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
+ * @param threadId Numeric identifier of the target thread.
+ */
 export async function listComments(
   db: Db,
   viewerId: string | null,
@@ -51,18 +55,27 @@ export async function listComments(
   return rows;
 }
 
-/** Read a comment’s ownership/content for mutation validation; return null when missing. */
+/** Read a comment’s ownership/content for mutation validation; return null when missing.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param commentId Numeric identifier of the target comment.
+ */
 export async function getComment(
   db: Db,
   commentId: number,
 ): Promise<{
   /** Stable identifier used to reference this record. */
-  id: number; /** Numeric key of the parent thread. */
-  thread_id: number; /** Internal UUID of the content author. */
-  author_id: string; /** Optional plain-text content; null means image-only content. */
-  body:
-    | string
-    | null; /** Shared attachment image ID, or null for text-only content. */
+  id: number;
+
+  /** Numeric key of the parent thread. */
+  thread_id: number;
+
+  /** Internal UUID of the content author. */
+  author_id: string;
+
+  /** Optional plain-text content; null means image-only content. */
+  body: string | null;
+
+  /** Shared attachment image ID, or null for text-only content. */
   image_id: number | null;
 } | null> {
   const [rows] = await db.execute<RowDataPacket[]>(
@@ -81,15 +94,23 @@ export async function getComment(
     : null;
 }
 
-/** Insert a comment using validated content; return its generated ID. Caller owns the image transaction. */
+/** Insert a comment using validated content; return its generated ID. Caller owns the image transaction.
+ * @param c Validated comment payload with authenticated author and parent thread.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ */
 export async function createComment(
   db: Db,
   c: {
+    /** Numeric identifier of the parent thread. */
     threadId: number;
-    authorId: string; /** Optional plain-text content; null means image-only content. */
-    body:
-      | string
-      | null; /** Shared image identifier; null uses the no-image presentation. */
+
+    /** Authenticated author UUID supplied by the action, never trusted from form data. */
+    authorId: string;
+
+    /** Optional plain-text content; null means image-only content. */
+    body: string | null;
+
+    /** Shared image identifier; null uses the no-image presentation. */
     imageId: number | null;
   },
 ): Promise<number> {
@@ -101,16 +122,21 @@ export async function createComment(
   return result.insertId;
 }
 
-/** Ownership check in the WHERE clause, same pattern as updateThread. */
+/** Ownership check in the WHERE clause, same pattern as updateThread.
+ * @param c Validated replacement text and optional image reference.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param commentId Numeric identifier of the target comment.
+ * @param authorId Authenticated author UUID used to enforce ownership.
+ */
 export async function updateComment(
   db: Db,
   commentId: number,
   authorId: string,
   c: {
     /** Optional plain-text content; null means image-only content. */
-    body:
-      | string
-      | null; /** Shared image identifier; null uses the no-image presentation. */
+    body: string | null;
+
+    /** Shared image identifier; null uses the no-image presentation. */
     imageId: number | null;
   },
 ): Promise<boolean> {
@@ -123,7 +149,11 @@ export async function updateComment(
   return result.affectedRows === 1;
 }
 
-/** Delete a comment only when the author matches; return whether a row was removed. */
+/** Delete a comment only when the author matches; return whether a row was removed.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param commentId Numeric identifier of the target comment.
+ * @param authorId Authenticated author UUID used to enforce ownership.
+ */
 export async function deleteComment(
   db: Db,
   commentId: number,

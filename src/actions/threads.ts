@@ -21,7 +21,10 @@ import {
   type FormState,
 } from "@/lib/validate";
 
-/** Validate the topic/content and atomically create the authenticated user’s thread and upload; redirect to the new thread. */
+/** Validate the topic/content and atomically create the authenticated user’s thread and upload; redirect to the new thread.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function createThreadAction(
   _prev: FormState,
   formData: FormData,
@@ -37,10 +40,13 @@ export async function createThreadAction(
 
     // One transaction: the image row and the thread row are saved together,
     // or neither is (e.g. if the topic id is invalid the image insert is rolled back).
-    threadId = await withImageTransaction(async (conn) => {
-      const imageId = file ? await saveImage(conn, file) : null;
-      return createThread(conn, { authorId: me.id, topicId, body, imageId });
-    });
+    threadId = await withImageTransaction(
+      /** Create the optional BLOB and thread together; return the new thread ID. */
+      async (conn) => {
+        const imageId = file ? await saveImage(conn, file) : null;
+        return createThread(conn, { authorId: me.id, topicId, body, imageId });
+      },
+    );
   } catch (err) {
     if (isMysqlError(err, "ER_NO_REFERENCED_ROW_2"))
       return { error: "Pick a valid topic." };
@@ -52,7 +58,10 @@ export async function createThreadAction(
   redirect(`/threads/${threadId}`);
 }
 
-/** Check author ownership, preserve the topic, and atomically update text/image content; redirect to the thread. */
+/** Check author ownership, preserve the topic, and atomically update text/image content; redirect to the thread.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function updateThreadAction(
   _prev: FormState,
   formData: FormData,
@@ -72,15 +81,18 @@ export async function updateThreadAction(
       throw new InputError("A thread needs text, an image, or both.");
     }
 
-    await withImageTransaction(async (conn) => {
-      const imageId = file
-        ? await saveImage(conn, file)
-        : removeImage
-          ? null
-          : current.image_id;
-      const ok = await updateThread(conn, threadId, me.id, { body, imageId });
-      if (!ok) throw new InputError("You can only edit your own threads.");
-    });
+    await withImageTransaction(
+      /** Replace thread content atomically while preserving ownership and its fixed topic. */
+      async (conn) => {
+        const imageId = file
+          ? await saveImage(conn, file)
+          : removeImage
+            ? null
+            : current.image_id;
+        const ok = await updateThread(conn, threadId, me.id, { body, imageId });
+        if (!ok) throw new InputError("You can only edit your own threads.");
+      },
+    );
   } catch (err) {
     const msg = errorMessage(err);
     if (msg) return { error: msg };
@@ -90,11 +102,14 @@ export async function updateThreadAction(
   redirect(`/threads/${threadId}`);
 }
 
-/** Delete only the authenticated author’s thread and dependent records, then redirect home. */
+/** Delete only the authenticated author’s thread and dependent records, then redirect home.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function deleteThreadAction(formData: FormData): Promise<void> {
   const me = await requireUser();
-  await withImageTransaction((conn) =>
-    deleteThread(conn, id(formData.get("thread_id")), me.id),
+  await withImageTransaction(
+    /** Delete the owned thread and cascaded comments before image cleanup. */
+    (conn) => deleteThread(conn, id(formData.get("thread_id")), me.id),
   );
   revalidatePath("/", "layout");
   redirect("/");

@@ -16,7 +16,10 @@ import {
   type FormState,
 } from "@/lib/validate";
 
-/** Validate editable profile fields and atomically update the current user’s identity display and avatar. */
+/** Validate editable profile fields and atomically update the current user’s identity display and avatar.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function updateProfileAction(
   _prev: FormState,
   formData: FormData,
@@ -32,19 +35,22 @@ export async function updateProfileAction(
   try {
     const bio = optionalText(formData, "bio", 500);
     const file = getUploadedFile(formData, "avatar");
-    await withImageTransaction(async (conn) => {
-      const current = await getUserById(conn, me.id);
-      if (!current) throw new Error("User not found");
-      let avatarImageId = current.avatar_image_id;
-      if (file) avatarImageId = await saveImage(conn, file);
-      else if (formData.get("remove_avatar") === "on") avatarImageId = null;
-      await updateProfile(conn, me.id, {
-        handle,
-        displayName,
-        bio,
-        avatarImageId,
-      });
-    });
+    await withImageTransaction(
+      /** Read and update the current profile/avatar in one image transaction. */
+      async (conn) => {
+        const current = await getUserById(conn, me.id);
+        if (!current) throw new Error("User not found");
+        let avatarImageId = current.avatar_image_id;
+        if (file) avatarImageId = await saveImage(conn, file);
+        else if (formData.get("remove_avatar") === "on") avatarImageId = null;
+        await updateProfile(conn, me.id, {
+          handle,
+          displayName,
+          bio,
+          avatarImageId,
+        });
+      },
+    );
   } catch (err) {
     if (isMysqlError(err, "ER_DUP_ENTRY"))
       return { error: "That handle is taken." };
@@ -56,7 +62,10 @@ export async function updateProfileAction(
   return { ok: "Profile saved." };
 }
 
-/** Require exact handle confirmation, delete the current account and dependent records, and clear its cookie. */
+/** Require exact handle confirmation, delete the current account and dependent records, and clear its cookie.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function deleteAccountAction(
   _prev: FormState,
   formData: FormData,
@@ -67,7 +76,10 @@ export async function deleteAccountAction(
   }
   // ON DELETE CASCADE removes sessions, threads, comments, likes, follows,
   // collections and messages in the same statement.
-  await withImageTransaction((conn) => deleteUser(conn, me.id));
+  await withImageTransaction(
+    /** Delete the current account and its cascades before cleaning unused images. */
+    (conn) => deleteUser(conn, me.id),
+  );
   await clearSessionCookie();
   revalidatePath("/", "layout");
   redirect("/");

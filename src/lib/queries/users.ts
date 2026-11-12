@@ -19,15 +19,26 @@ export interface UserRow {
   created_at: Date;
 }
 
-/** Insert validated account fields with a pre-hashed password; unique handle/email conflicts propagate. */
+/** Insert validated account fields with a pre-hashed password; unique handle/email conflicts propagate.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param u Validated registration fields including an already hashed password.
+ */
 export async function createUser(
   db: Db,
   u: {
     /** Stable identifier used to reference this record. */
-    id: string; /** Public account handle used in profile URLs. */
-    handle: string; /** Unique account email used for sign-in. */
+    id: string;
+
+    /** Public account handle used in profile URLs. */
+    handle: string;
+
+    /** Unique account email used for sign-in. */
     email: string;
+
+    /** Salted bcrypt hash; never a plaintext password. */
     passwordHash: string;
+
+    /** Human-readable account name displayed in profiles. */
     displayName: string;
   },
 ): Promise<void> {
@@ -38,13 +49,18 @@ export async function createUser(
   );
 }
 
-/** Read only the internal ID and password hash needed for authentication; return null when unknown. */
+/** Read only the internal ID and password hash needed for authentication; return null when unknown.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param email Account email used for sign-in lookup.
+ */
 export async function findLoginByEmail(
   db: Db,
   email: string,
 ): Promise<{
   /** Stable identifier used to reference this record. */
   id: string;
+
+  /** Salted bcrypt hash used only for credential verification. */
   password_hash: string;
 } | null> {
   const [rows] = await db.execute<RowDataPacket[]>(
@@ -56,7 +72,10 @@ export async function findLoginByEmail(
     : null;
 }
 
-/** Read profile fields by stable user UUID; return null when absent. */
+/** Read profile fields by stable user UUID; return null when absent.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param id Stable identifier of the requested record.
+ */
 export async function getUserById(db: Db, id: string): Promise<UserRow | null> {
   const [rows] = await db.execute<(UserRow & RowDataPacket)[]>(
     `SELECT id, handle, email, display_name, bio, avatar_image_id, created_at
@@ -66,7 +85,10 @@ export async function getUserById(db: Db, id: string): Promise<UserRow | null> {
   return rows[0] ?? null;
 }
 
-/** Read profile fields by public handle; return null when absent. */
+/** Read profile fields by public handle; return null when absent.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param handle Public account handle used for lookup.
+ */
 export async function getUserByHandle(
   db: Db,
   handle: string,
@@ -82,6 +104,10 @@ export async function getUserByHandle(
 /**
  * Edit profile. A taken handle raises ER_DUP_ENTRY on uq_users_handle,
  * which the action turns into a form error.
+ *
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param id Stable identifier of the requested record.
+ * @param p Validated editable profile fields.
  */
 export async function updateProfile(
   db: Db,
@@ -89,8 +115,14 @@ export async function updateProfile(
   p: {
     /** Public account handle used in profile URLs. */
     handle: string;
-    displayName: string; /** Optional profile biography; null means no biography. */
+
+    /** Human-readable account name displayed in profiles. */
+    displayName: string;
+
+    /** Optional profile biography; null means no biography. */
     bio: string | null;
+
+    /** Shared avatar identifier, or null to remove the avatar. */
     avatarImageId: number | null;
   },
 ): Promise<void> {
@@ -107,6 +139,9 @@ export async function updateProfile(
  * users.id has ON DELETE CASCADE (sessions, threads -> comments -> likes,
  * comments, likes, follows in both directions, collections -> collection_threads,
  * messages sent and received). InnoDB runs the whole cascade atomically.
+ *
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param id Stable identifier of the requested record.
  */
 export async function deleteUser(db: Db, id: string): Promise<boolean> {
   const [result] = await db.execute<ResultSetHeader>(

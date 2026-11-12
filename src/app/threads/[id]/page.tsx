@@ -34,8 +34,12 @@ export default async function ThreadPage({
     /** Stable identifier used to reference this record. */
     id: string;
   }>;
+
   /** Asynchronous URL query parameters supplied by Next.js. */
-  searchParams: Promise<{ editComment?: string }>;
+  searchParams: Promise<{
+    /** Optional comment ID selecting the author’s inline edit form. */
+    editComment?: string;
+  }>;
 }) {
   const threadId = parseId((await params).id);
   if (!threadId) notFound();
@@ -67,24 +71,27 @@ export default async function ThreadPage({
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {collections.map((c) => (
-                <form
-                  key={c.id}
-                  action={
-                    c.has_thread
-                      ? removeFromCollectionAction
-                      : saveToCollectionAction
-                  }
-                >
-                  <input type="hidden" name="collection_id" value={c.id} />
-                  <input type="hidden" name="thread_id" value={thread.id} />
-                  <button className={c.has_thread ? "btn" : "btn-secondary"}>
-                    {c.has_thread
-                      ? `✓ In “${c.name}” (remove)`
-                      : `+ Save to “${c.name}”`}
-                  </button>
-                </form>
-              ))}
+              {collections.map(
+                /** Offer save/remove actions only for the viewer’s own collections. */
+                (c) => (
+                  <form
+                    key={c.id}
+                    action={
+                      c.has_thread
+                        ? removeFromCollectionAction
+                        : saveToCollectionAction
+                    }
+                  >
+                    <input type="hidden" name="collection_id" value={c.id} />
+                    <input type="hidden" name="thread_id" value={thread.id} />
+                    <button className={c.has_thread ? "btn" : "btn-secondary"}>
+                      {c.has_thread
+                        ? `✓ In “${c.name}” (remove)`
+                        : `+ Save to “${c.name}”`}
+                    </button>
+                  </form>
+                ),
+              )}
             </div>
           )}
         </section>
@@ -92,89 +99,96 @@ export default async function ThreadPage({
 
       <section className="space-y-3">
         <h2 className="font-semibold">Comments ({comments.length})</h2>
-        {comments.map((c) => {
-          const mine = me?.id === c.author_id;
-          const editing = mine && editingId === c.id;
-          return (
-            <div key={c.id} id={`c${c.id}`} className="card">
-              <div className="flex items-center gap-2">
-                <Avatar
-                  imageId={c.avatar_image_id}
-                  name={c.display_name}
-                  size={32}
-                />
-                <Link
-                  href={`/u/${c.handle}`}
-                  className="text-sm font-medium hover:underline"
-                >
-                  {c.display_name}
-                </Link>
-                <span className="muted">@{c.handle} ·</span>
-                <Stamp at={c.created_at} edited={c.edited} />
-              </div>
-              {editing ? (
-                <div className="mt-3">
-                  <ActionForm
-                    action={updateCommentAction}
-                    submitLabel="Save comment"
-                  >
-                    <input type="hidden" name="comment_id" value={c.id} />
-                    <ContentFields
-                      defaultBody={c.body}
-                      currentImageId={c.image_id}
-                      rows={3}
-                    />
-                  </ActionForm>
+        {comments.map(
+          /** Render a comment or its author-only editor, retaining like and delete controls. */
+          (c) => {
+            const mine = me?.id === c.author_id;
+            const editing = mine && editingId === c.id;
+            return (
+              <div key={c.id} id={`c${c.id}`} className="card">
+                <div className="flex items-center gap-2">
+                  <Avatar
+                    imageId={c.avatar_image_id}
+                    name={c.display_name}
+                    size={32}
+                  />
                   <Link
-                    href={`/threads/${thread.id}#c${c.id}`}
-                    className="link mt-2 inline-block text-sm"
+                    href={`/u/${c.handle}`}
+                    className="text-sm font-medium hover:underline"
                   >
-                    Cancel
+                    {c.display_name}
                   </Link>
+                  <span className="muted">@{c.handle} ·</span>
+                  <Stamp at={c.created_at} edited={c.edited} />
                 </div>
-              ) : (
-                <>
-                  {c.body && (
-                    <p className="mt-2 whitespace-pre-wrap break-words">
-                      {c.body}
-                    </p>
-                  )}
-                  {c.image_id && <PostImage imageId={c.image_id} />}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {me ? (
-                      <form action={toggleCommentLikeAction}>
-                        <input type="hidden" name="comment_id" value={c.id} />
-                        <button
-                          className={c.liked_by_me ? "btn" : "btn-secondary"}
-                        >
-                          {c.liked_by_me ? "♥" : "♡"} {c.like_count}
-                        </button>
-                      </form>
-                    ) : (
-                      <span className="muted">♡ {c.like_count}</span>
-                    )}
-                    {mine && (
-                      <>
-                        <Link
-                          href={`/threads/${thread.id}?editComment=${c.id}#c${c.id}`}
-                          className="btn-secondary"
-                        >
-                          Edit
-                        </Link>
-                        <form action={deleteCommentAction}>
-                          <input type="hidden" name="comment_id" value={c.id} />
-                          <ConfirmButton message="Delete this comment?">
-                            Delete
-                          </ConfirmButton>
-                        </form>
-                      </>
-                    )}
+                {editing ? (
+                  <div className="mt-3">
+                    <ActionForm
+                      action={updateCommentAction}
+                      submitLabel="Save comment"
+                    >
+                      <input type="hidden" name="comment_id" value={c.id} />
+                      <ContentFields
+                        defaultBody={c.body}
+                        currentImageId={c.image_id}
+                        rows={3}
+                      />
+                    </ActionForm>
+                    <Link
+                      href={`/threads/${thread.id}#c${c.id}`}
+                      className="link mt-2 inline-block text-sm"
+                    >
+                      Cancel
+                    </Link>
                   </div>
-                </>
-              )}
-            </div>
-          );
-        })}
+                ) : (
+                  <>
+                    {c.body && (
+                      <p className="mt-2 whitespace-pre-wrap break-words">
+                        {c.body}
+                      </p>
+                    )}
+                    {c.image_id && <PostImage imageId={c.image_id} />}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {me ? (
+                        <form action={toggleCommentLikeAction}>
+                          <input type="hidden" name="comment_id" value={c.id} />
+                          <button
+                            className={c.liked_by_me ? "btn" : "btn-secondary"}
+                          >
+                            {c.liked_by_me ? "♥" : "♡"} {c.like_count}
+                          </button>
+                        </form>
+                      ) : (
+                        <span className="muted">♡ {c.like_count}</span>
+                      )}
+                      {mine && (
+                        <>
+                          <Link
+                            href={`/threads/${thread.id}?editComment=${c.id}#c${c.id}`}
+                            className="btn-secondary"
+                          >
+                            Edit
+                          </Link>
+                          <form action={deleteCommentAction}>
+                            <input
+                              type="hidden"
+                              name="comment_id"
+                              value={c.id}
+                            />
+                            <ConfirmButton message="Delete this comment?">
+                              Delete
+                            </ConfirmButton>
+                          </form>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          },
+        )}
 
         {me ? (
           <div className="card">

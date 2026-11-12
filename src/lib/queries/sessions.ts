@@ -15,7 +15,11 @@ export interface SessionUser {
   avatar_image_id: number | null;
 }
 
-/** Store a browser token with a 30-day database expiry for the supplied user. */
+/** Store a browser token with a 30-day database expiry for the supplied user.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param token Opaque browser session token; do not log or expose it.
+ * @param userId Stable UUID of the account involved in the operation.
+ */
 export async function createSession(
   db: Db,
   token: string,
@@ -28,7 +32,10 @@ export async function createSession(
   );
 }
 
-/** The logged-in user for a cookie token, or null if the token is unknown or expired. */
+/** The logged-in user for a cookie token, or null if the token is unknown or expired.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param token Opaque browser session token; do not log or expose it.
+ */
 export async function getSessionUser(
   db: Db,
   token: string,
@@ -43,12 +50,18 @@ export async function getSessionUser(
   return rows[0] ?? null;
 }
 
-/** Revoke one browser token; missing sessions are harmless. */
+/** Revoke one browser token; missing sessions are harmless.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param token Opaque browser session token; do not log or expose it.
+ */
 export async function deleteSession(db: Db, token: string): Promise<void> {
   await db.execute("DELETE FROM sessions WHERE token = ?", [token]);
 }
 
-/** Housekeeping on each login: drop this user's expired sessions. */
+/** Housekeeping on each login: drop this user's expired sessions.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param userId Stable UUID of the account involved in the operation.
+ */
 export async function deleteExpiredSessions(
   db: Db,
   userId: string,
@@ -64,6 +77,9 @@ export async function deleteExpiredSessions(
  * last creation/renewal. expires_at - 30 days is the last renewal time, so no
  * additional stored timestamp is needed. The predicate is atomic under races.
  * Returns true only to the request responsible for refreshing the cookie.
+ *
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param token Opaque browser session token; do not log or expose it.
  */
 export async function renewSession(db: Db, token: string): Promise<boolean> {
   const [result] = await db.execute<ResultSetHeader>(

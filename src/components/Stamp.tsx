@@ -6,7 +6,9 @@ export function Stamp({
   edited,
 }: {
   /** Timestamp to format for display. */
-  at: Date; /** Whether the modification timestamp is later than creation. */
+  at: Date;
+
+  /** Whether the modification timestamp is later than creation. */
   edited?: number | boolean;
 }) {
   return (

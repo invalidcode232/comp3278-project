@@ -37,11 +37,14 @@ export default async function NewThreadPage({
             <option value="" disabled>
               Choose a topic…
             </option>
-            {topics.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
+            {topics.map(
+              /** Render each seeded topic as a required creation-time choice. */
+              (t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ),
+            )}
           </select>
         </div>
         <ContentFields placeholder="What's on your mind? (text, an image, or both)" />

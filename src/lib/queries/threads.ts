@@ -42,6 +42,8 @@ export interface ThreadView {
  * thread_likes and comments together would multiply rows (likes x comments)
  * and inflate both counts. Each subquery uses an index on thread_id.
  */
+
+/** Shared thread projection with independent counts to avoid join multiplication. */
 const THREAD_SELECT = `
   SELECT t.id, t.author_id, t.body, t.image_id, t.created_at,
          (t.updated_at > t.created_at) AS edited,
@@ -55,7 +57,10 @@ const THREAD_SELECT = `
   JOIN users  u  ON u.id  = t.author_id
   JOIN topics tp ON tp.id = t.topic_id`;
 
-/** "All" feed: newest threads from everyone. */
+/** "All" feed: newest threads from everyone.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
+ */
 export async function listAllThreads(
   db: Db,
   viewerId: string | null,
@@ -69,7 +74,10 @@ export async function listAllThreads(
   return rows;
 }
 
-/** "Following" feed: threads whose author the viewer follows. */
+/** "Following" feed: threads whose author the viewer follows.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
+ */
 export async function listFollowingThreads(
   db: Db,
   viewerId: string,
@@ -84,7 +92,11 @@ export async function listFollowingThreads(
   return rows;
 }
 
-/** Threads in one topic; served by the (topic_id, created_at) index. */
+/** Threads in one topic; served by the (topic_id, created_at) index.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
+ * @param topicId Numeric identifier of the seeded topic.
+ */
 export async function listTopicThreads(
   db: Db,
   viewerId: string | null,
@@ -100,7 +112,11 @@ export async function listTopicThreads(
   return rows;
 }
 
-/** A user's threads, for their profile page. */
+/** A user's threads, for their profile page.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
+ * @param authorId Authenticated author UUID used to enforce ownership.
+ */
 export async function listUserThreads(
   db: Db,
   viewerId: string | null,
@@ -115,7 +131,11 @@ export async function listUserThreads(
   return rows;
 }
 
-/** Threads saved in a collection, most recently saved first. Only the owner can read it. */
+/** Threads saved in a collection, most recently saved first. Only the owner can read it.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
+ * @param collectionId Numeric identifier of the target collection.
+ */
 export async function listCollectionThreads(
   db: Db,
   viewerId: string,
@@ -132,7 +152,11 @@ export async function listCollectionThreads(
   return rows;
 }
 
-/** Read a thread with viewer-specific like state; return null when absent. */
+/** Read a thread with viewer-specific like state; return null when absent.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
+ * @param threadId Numeric identifier of the target thread.
+ */
 export async function getThread(
   db: Db,
   viewerId: string | null,
@@ -146,15 +170,23 @@ export async function getThread(
   return rows[0] ?? null;
 }
 
-/** Called inside a transaction together with the image insert (see actions/threads.ts). */
+/** Called inside a transaction together with the image insert (see actions/threads.ts).
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param t Validated thread content; author identity comes from the session.
+ */
 export async function createThread(
   db: Db,
   t: {
+    /** Authenticated author UUID supplied by the action, never trusted from form data. */
     authorId: string;
-    topicId: number; /** Optional plain-text content; null means image-only content. */
-    body:
-      | string
-      | null; /** Shared image identifier; null uses the no-image presentation. */
+
+    /** Seeded topic identifier fixed at thread creation. */
+    topicId: number;
+
+    /** Optional plain-text content; null means image-only content. */
+    body: string | null;
+
+    /** Shared image identifier; null uses the no-image presentation. */
     imageId: number | null;
   },
 ): Promise<number> {
@@ -170,6 +202,11 @@ export async function createThread(
  * Ownership is enforced in the WHERE clause: if the thread is not yours,
  * no row matches and affectedRows is 0. updated_at changes automatically
  * (ON UPDATE CURRENT_TIMESTAMP), which drives the "(edited)" marker.
+ *
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param threadId Numeric identifier of the target thread.
+ * @param authorId Authenticated author UUID used to enforce ownership.
+ * @param t Validated thread content; author identity comes from the session.
  */
 export async function updateThread(
   db: Db,
@@ -177,9 +214,9 @@ export async function updateThread(
   authorId: string,
   t: {
     /** Optional plain-text content; null means image-only content. */
-    body:
-      | string
-      | null; /** Shared image identifier; null uses the no-image presentation. */
+    body: string | null;
+
+    /** Shared image identifier; null uses the no-image presentation. */
     imageId: number | null;
   },
 ): Promise<boolean> {
@@ -192,7 +229,11 @@ export async function updateThread(
   return result.affectedRows === 1;
 }
 
-/** Comments, likes and collection entries go with it via ON DELETE CASCADE. */
+/** Comments, likes and collection entries go with it via ON DELETE CASCADE.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param threadId Numeric identifier of the target thread.
+ * @param authorId Authenticated author UUID used to enforce ownership.
+ */
 export async function deleteThread(
   db: Db,
   threadId: number,

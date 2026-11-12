@@ -8,9 +8,13 @@ import { endSession, startSession } from "@/lib/auth";
 import { createUser, findLoginByEmail } from "@/lib/queries/users";
 import { HANDLE_RE, str, type FormState } from "@/lib/validate";
 
+/** Basic syntactic email check for registration input. */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Validate registration fields, hash the password, create the user, and start a session. Returns expected validation errors; redirects on success. */
+/** Validate registration fields, hash the password, create the user, and start a session. Returns expected validation errors; redirects on success.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function signupAction(
   _prev: FormState,
   formData: FormData,
@@ -55,7 +59,10 @@ export async function signupAction(
   redirect("/");
 }
 
-/** Verify email and password, start a browser session, and redirect home. Unknown users and incorrect passwords share one error. */
+/** Verify email and password, start a browser session, and redirect home. Unknown users and incorrect passwords share one error.
+ * @param _prev Previous form feedback required by useActionState; not used for authorization.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ */
 export async function loginAction(
   _prev: FormState,
   formData: FormData,

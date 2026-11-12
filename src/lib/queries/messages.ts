@@ -46,6 +46,9 @@ export interface MessageRow {
  *  2. ranked: ROW_NUMBER() restarts at 1 for each partner, newest first.
  *  3. Keep rn = 1 (the latest per partner), join the partner's profile.
  * Excluding self-messages from the received branch keeps each message once.
+ *
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param userId Stable UUID of the account involved in the operation.
  */
 export async function listConversations(
   db: Db,
@@ -78,7 +81,11 @@ export async function listConversations(
   return rows;
 }
 
-/** Every message between two users in either direction, oldest first. */
+/** Every message between two users in either direction, oldest first.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param userId Stable UUID of the account involved in the operation.
+ * @param partnerId UUID of the conversation partner, including the viewer for self-messages.
+ */
 export async function listConversation(
   db: Db,
   userId: string,
@@ -95,15 +102,23 @@ export async function listConversation(
   return rows;
 }
 
-/** Insert validated sender/recipient content and return the generated message ID; caller owns the upload transaction. */
+/** Insert validated sender/recipient content and return the generated message ID; caller owns the upload transaction.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param m Validated message payload; sender identity comes from the session.
+ */
 export async function sendMessage(
   db: Db,
   m: {
+    /** Authenticated sender UUID. */
     senderId: string;
-    recipientId: string; /** Optional plain-text content; null means image-only content. */
-    body:
-      | string
-      | null; /** Shared image identifier; null uses the no-image presentation. */
+
+    /** Existing recipient UUID; may equal senderId for self-messages. */
+    recipientId: string;
+
+    /** Optional plain-text content; null means image-only content. */
+    body: string | null;
+
+    /** Shared image identifier; null uses the no-image presentation. */
     imageId: number | null;
   },
 ): Promise<number> {

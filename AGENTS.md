@@ -15,6 +15,8 @@ Sources:
 
 - `Final Project Assessment Criteria.pdf`: assessment weights, reproducibility,
   presentation timing, and participation requirements.
+- `ch2 - ER-model.pdf`: course ER symbols, cardinalities, participation, keys,
+  and role notation.
 - `tutorial_final_project.pdf`: project workflow, core CRUD expectations, and
   submission requirements.
 - [Rough features](https://docs.google.com/document/d/1zHnXJZ0vjlPRE4-Ua95IFfSh7AP74P-271w0aW8EPVY/edit):
@@ -128,6 +130,10 @@ code. Keep the following declaration-documentation policy throughout the project
 
 ## Database and application correctness
 
+- Use the course ER notation: entity rectangles, relationship diamonds, attribute
+  ellipses, underlined primary keys, arrows to the one side, double lines for
+  total participation, and role labels. Do not substitute crow's-foot notation.
+  Update the Graphviz source, rendered SVG/PNG, and mapping documentation together.
 - Keep the ER diagram, relational schema, and implementation consistent. Make
   cardinalities, primary/foreign keys, uniqueness, and deletion behavior explicit.
 - Use parameterized SQL for values and allowlisted identifiers where dynamic SQL

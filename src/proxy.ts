@@ -8,6 +8,8 @@ import { SESSION_COOKIE, sessionCookieOptions } from "@/lib/session-policy";
  * be written. The conditional SQL update grants only one renewal per 24 hours,
  * even for concurrent requests. Expired or missing sessions are never revived.
  * Pages/actions still enforce authentication independently of this convenience.
+ *
+ * @param request Incoming HTTP request used for cookies or conditional response headers.
  */
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next();

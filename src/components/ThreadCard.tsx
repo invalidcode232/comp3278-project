@@ -17,8 +17,10 @@ export function ThreadCard({
 }: {
   /** Query projection rendered as a thread card. */
   thread: ThreadView;
+
   /** Authenticated viewer, or null for a public visitor. */
   viewer: SessionUser | null;
+
   /** Optional controls appended to the thread card footer. */
   extra?: ReactNode;
 }) {

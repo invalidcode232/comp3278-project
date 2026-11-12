@@ -5,7 +5,9 @@ import { InputError } from "./validate";
 
 import { MAX_IMAGE_BYTES } from "./limits";
 
-/** Work out the type from the file's first bytes; the browser-supplied type is not trusted. */
+/** Work out the type from the file's first bytes; the browser-supplied type is not trusted.
+ * @param b Uploaded bytes inspected for a supported image signature.
+ */
 function sniffMime(b: Buffer): string | null {
   if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff)
     return "image/jpeg";
@@ -31,7 +33,10 @@ function sniffMime(b: Buffer): string | null {
   return null;
 }
 
-/** The uploaded file from a form field, or null if the field was left empty. */
+/** The uploaded file from a form field, or null if the field was left empty.
+ * @param formData Submitted fields; caller identity is resolved separately from the session.
+ * @param field Form field containing the upload; defaults to image.
+ */
 export function getUploadedFile(
   formData: FormData,
   field = "image",
@@ -40,7 +45,10 @@ export function getUploadedFile(
   return f instanceof File && f.size > 0 ? f : null;
 }
 
-/** Check a file, then store it (deduplicated by SHA-256). Returns the image id. */
+/** Check a file, then store it (deduplicated by SHA-256). Returns the image id.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param file Uploaded File, or bundled fixture filename in the seed script.
+ */
 export async function saveImage(db: Db, file: File): Promise<number> {
   if (file.size > MAX_IMAGE_BYTES)
     throw new InputError("Images must be 10 MiB or smaller.");

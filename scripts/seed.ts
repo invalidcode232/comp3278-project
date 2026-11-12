@@ -13,11 +13,20 @@ import type {
   RowDataPacket,
 } from "mysql2/promise";
 
+/** Synthetic demo password hashed separately for each seed account. */
 const PASSWORD = "password123";
+
+/** Seed reference time in milliseconds since the Unix epoch. */
 const now = Date.now();
-const minutesAgo = (m: number) => new Date(now - m * 60_000);
+
+/** Convert fixture age in minutes to a Date relative to the seed reference time. */
+const minutesAgo =
+  /** Convert fixture age in minutes to its synthetic creation Date. */
+  (m: number) => new Date(now - m * 60_000);
 
 // ---------------------------------------------------------------- data
+
+/** Synthetic account fixtures keyed by stable symbolic names within this seed run. */
 const users = [
   {
     key: "alice",
@@ -60,6 +69,7 @@ const users = [
 /** Allowed symbolic seed-user keys used to resolve fixture references. */
 type UserKey = (typeof users)[number]["key"];
 
+/** Seeded public topic choices and descriptions. */
 const topics = [
   {
     name: "Course Help",
@@ -81,6 +91,8 @@ const topics = [
 ];
 
 // [author, topic index, body, image file or null, minutes ago, edited?]
+
+/** Synthetic thread fixtures: author, topic, content, image, age, and edit marker. */
 const threads: [
   UserKey,
   number,
@@ -238,6 +250,8 @@ const threads: [
 ];
 
 // [thread index, author, body, image file or null]
+
+/** Synthetic comment fixtures referencing seeded threads and users. */
 const comments: [number, UserKey, string | null, string | null][] = [
   [
     0,
@@ -301,6 +315,7 @@ const comments: [number, UserKey, string | null, string | null][] = [
   [19, "dave", "Wait until you meet LAG() and LEAD().", null],
 ];
 
+/** Synthetic directed follower/followee pairs. */
 const follows: [UserKey, UserKey][] = [
   ["alice", "bob"],
   ["alice", "carol"],
@@ -320,6 +335,8 @@ const follows: [UserKey, UserKey][] = [
 ];
 
 // [owner, name, thread indexes]
+
+/** Synthetic private collections with their saved-thread fixture indices. */
 const collections: [UserKey, string, number[]][] = [
   ["alice", "Exam prep", [0, 8, 13, 15, 19]],
   ["alice", "Food spots", [3, 9, 11]],
@@ -327,6 +344,8 @@ const collections: [UserKey, string, number[]][] = [
 ];
 
 // [sender, recipient, body, image file or null] — oldest first
+
+/** Synthetic sender/recipient message fixtures with optional images. */
 const messages: [UserKey, UserKey, string | null, string | null][] = [
   ["alice", "bob", "Hey Bob, are you free for the workshop on Saturday?", null],
   ["bob", "alice", "Yes! Bring your camera.", null],
@@ -351,6 +370,8 @@ const messages: [UserKey, UserKey, string | null, string | null][] = [
 ];
 
 // ---------------------------------------------------------------- helpers
+
+/** Supported fixture filename extensions mapped to actual media types. */
 const MIME: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
@@ -359,7 +380,10 @@ const MIME: Record<string, string> = {
   webp: "image/webp",
 };
 
-/** Load a bundled fixture image, hash its bytes, and reuse or insert its BLOB within the seed transaction. */
+/** Load a bundled fixture image, hash its bytes, and reuse or insert its BLOB within the seed transaction.
+ * @param conn Active MySQL connection owned by the caller.
+ * @param file Uploaded File, or bundled fixture filename in the seed script.
+ */
 async function insertImage(
   conn: PoolConnection,
   file: string,
@@ -425,7 +449,9 @@ async function main(): Promise<void> {
         ],
       );
     }
-    const uid = (k: UserKey) => userId.get(k)!;
+    const uid =
+      /** Resolve a known seed-user key to its generated UUID. */
+      (k: UserKey) => userId.get(k)!;
 
     // Topics --------------------------------------------------------------
     const topicIds: number[] = [];
@@ -547,10 +573,22 @@ async function main(): Promise<void> {
               (SELECT COUNT(*) FROM images) images`,
     );
     const imageRefs =
-      users.filter((u) => u.avatar).length +
-      threads.filter((t) => t[3]).length +
-      comments.filter((c) => c[3]).length +
-      messages.filter((m) => m[3]).length;
+      users.filter(
+        /** Count seed users that carry an avatar reference. */
+        (u) => u.avatar,
+      ).length +
+      threads.filter(
+        /** Count thread fixtures with image filenames. */
+        (t) => t[3],
+      ).length +
+      comments.filter(
+        /** Count comment fixtures with image filenames. */
+        (c) => c[3],
+      ).length +
+      messages.filter(
+        /** Count message fixtures with image filenames. */
+        (m) => m[3],
+      ).length;
     console.log("Seeded:", counts[0]);
     console.log(
       `Images: ${imageRefs} references stored as ${counts[0].images} rows (duplicates reused by SHA-256).`,
@@ -559,10 +597,20 @@ async function main(): Promise<void> {
       `Likes inserted: ${threadLikes} thread, ${commentLikes} comment.`,
     );
     console.log(
-      `Demo logins: ${users.map((u) => `${u.key}@example.com`).join(", ")} / password: ${PASSWORD}`,
+      `Demo logins: ${users
+        .map(
+          /** List synthetic sign-in emails for the seed summary. */
+          (u) => `${u.key}@example.com`,
+        )
+        .join(", ")} / password: ${PASSWORD}`,
     );
   } catch (err) {
-    await conn.rollback().catch(() => {});
+    await conn
+      .rollback()
+      .catch(
+        /** Preserve the original seed failure if connection cleanup also fails. */
+        () => {},
+      );
     throw err;
   } finally {
     conn.release();
@@ -570,7 +618,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err: unknown) => {
-  console.error("db:seed failed:", err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+main().catch(
+  /** Report seed failure without connection secrets and exit unsuccessfully. */
+  (err: unknown) => {
+    console.error("db:seed failed:", err instanceof Error ? err.message : err);
+    process.exit(1);
+  },
+);

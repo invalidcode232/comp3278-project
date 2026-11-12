@@ -7,8 +7,11 @@ import { Avatar } from "@/components/Avatar";
 import "./globals.css";
 
 // Every page depends on the logged-in user and live data, so never prerender.
+
+/** Force request-time rendering because pages depend on sessions and current data. */
 export const dynamic = "force-dynamic";
 
+/** Application title and description exposed in document metadata. */
 export const metadata: Metadata = {
   title: "COMP3278 Social",
   description: "A small social app built on hand-written MySQL.",

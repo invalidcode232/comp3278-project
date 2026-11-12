@@ -13,7 +13,10 @@ export interface CollectionRow {
   thread_count: number;
 }
 
-/** The owner's collections with how many threads each holds. */
+/** The owner's collections with how many threads each holds.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param ownerId Authenticated owner UUID used to scope collection access.
+ */
 export async function listCollections(
   db: Db,
   ownerId: string,
@@ -30,14 +33,20 @@ export async function listCollections(
   return rows;
 }
 
-/** Find a collection only when it belongs to the supplied owner; return null otherwise. */
+/** Find a collection only when it belongs to the supplied owner; return null otherwise.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param ownerId Authenticated owner UUID used to scope collection access.
+ * @param collectionId Numeric identifier of the target collection.
+ */
 export async function getCollection(
   db: Db,
   ownerId: string,
   collectionId: number,
 ): Promise<{
   /** Stable identifier used to reference this record. */
-  id: number; /** Human-readable label displayed for this record. */
+  id: number;
+
+  /** Human-readable label displayed for this record. */
   name: string;
 } | null> {
   const [rows] = await db.execute<RowDataPacket[]>(
@@ -47,7 +56,11 @@ export async function getCollection(
   return rows.length ? { id: rows[0].id, name: rows[0].name } : null;
 }
 
-/** For the thread page: each of my collections, and whether this thread is already in it. */
+/** For the thread page: each of my collections, and whether this thread is already in it.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param ownerId Authenticated owner UUID used to scope collection access.
+ * @param threadId Numeric identifier of the target thread.
+ */
 export async function listCollectionsForThread(
   db: Db,
   ownerId: string,
@@ -55,8 +68,12 @@ export async function listCollectionsForThread(
 ): Promise<
   {
     /** Stable identifier used to reference this record. */
-    id: number; /** Human-readable label displayed for this record. */
+    id: number;
+
+    /** Human-readable label displayed for this record. */
     name: string;
+
+    /** SQL EXISTS result: 1 when this collection contains the selected thread. */
     has_thread: number;
   }[]
 > {
@@ -71,13 +88,21 @@ export async function listCollectionsForThread(
   );
   return rows as {
     /** Stable identifier used to reference this record. */
-    id: number; /** Human-readable label displayed for this record. */
+    id: number;
+
+    /** Human-readable label displayed for this record. */
     name: string;
+
+    /** SQL EXISTS result: 1 when this collection contains the selected thread. */
     has_thread: number;
   }[];
 }
 
-/** A duplicate name for the same owner raises ER_DUP_ENTRY on uq_collections_owner_name. */
+/** A duplicate name for the same owner raises ER_DUP_ENTRY on uq_collections_owner_name.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param ownerId Authenticated owner UUID used to scope collection access.
+ * @param name Validated collection name, unique for its owner.
+ */
 export async function createCollection(
   db: Db,
   ownerId: string,
@@ -90,7 +115,12 @@ export async function createCollection(
   return result.insertId;
 }
 
-/** Update an owned collection’s name; return whether a row matched and propagate duplicate-name failures. */
+/** Update an owned collection’s name; return whether a row matched and propagate duplicate-name failures.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param ownerId Authenticated owner UUID used to scope collection access.
+ * @param collectionId Numeric identifier of the target collection.
+ * @param name Validated collection name, unique for its owner.
+ */
 export async function renameCollection(
   db: Db,
   ownerId: string,
@@ -104,7 +134,11 @@ export async function renameCollection(
   return result.affectedRows === 1;
 }
 
-/** collection_threads rows go with it (ON DELETE CASCADE); the threads themselves stay. */
+/** collection_threads rows go with it (ON DELETE CASCADE); the threads themselves stay.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param ownerId Authenticated owner UUID used to scope collection access.
+ * @param collectionId Numeric identifier of the target collection.
+ */
 export async function deleteCollection(
   db: Db,
   ownerId: string,
@@ -121,6 +155,11 @@ export async function deleteCollection(
  * Save a thread into a collection. INSERT ... SELECT only produces a row if
  * the collection belongs to the caller, so ownership is checked in the same
  * statement. INSERT IGNORE makes saving twice a no-op.
+ *
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param ownerId Authenticated owner UUID used to scope collection access.
+ * @param collectionId Numeric identifier of the target collection.
+ * @param threadId Numeric identifier of the target thread.
  */
 export async function addThreadToCollection(
   db: Db,
@@ -136,7 +175,12 @@ export async function addThreadToCollection(
   );
 }
 
-/** Multi-table DELETE: remove the link only if the collection is the caller's. */
+/** Multi-table DELETE: remove the link only if the collection is the caller's.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param ownerId Authenticated owner UUID used to scope collection access.
+ * @param collectionId Numeric identifier of the target collection.
+ * @param threadId Numeric identifier of the target thread.
+ */
 export async function removeThreadFromCollection(
   db: Db,
   ownerId: string,

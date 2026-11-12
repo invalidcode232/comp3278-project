@@ -11,6 +11,8 @@ export type Db = Pool | PoolConnection;
 
 declare global {
   // Reuse one pool across hot reloads in `next dev`.
+
+  /** Process-global pool cache retained during development hot reloads. */
   var __mysqlPool: Pool | undefined;
 }
 
@@ -26,42 +28,41 @@ function createPool(): Pool {
     // Store and read every DATETIME as UTC, whatever the server or Node time zone is.
     timezone: "Z",
   });
-  // DEFAULT CURRENT_TIMESTAMP uses the session time zone, so pin it to UTC too.
-  pool.pool.on("connection", (conn) => {
-    conn.query("SET time_zone = '+00:00'");
-  });
+  /** Pin each new connection to UTC so DEFAULT CURRENT_TIMESTAMP and Date decoding agree. */
+  pool.pool.on(
+    "connection",
+    (conn) => {
+      conn.query("SET time_zone = '+00:00'");
+    },
+  );
   return pool;
 }
 
+/** Shared MySQL connection pool reused across development hot reloads. */
 export const pool: Pool =
   globalThis.__mysqlPool ?? (globalThis.__mysqlPool = createPool());
 
-/** Run fn inside BEGIN ... COMMIT on one connection; ROLLBACK if it throws. */
-export async function withTransaction<T>(
-  fn: (conn: PoolConnection) => Promise<T>,
-): Promise<T> {
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-    const result = await fn(conn);
-    await conn.commit();
-    return result;
-  } catch (err) {
-    await conn.rollback();
-    throw err;
-  } finally {
-    conn.release();
-  }
-}
-
-/** True if err is a MySQL error with the given code, e.g. "ER_DUP_ENTRY". */
+/** True if err is a MySQL error with the given code, e.g. "ER_DUP_ENTRY".
+ * @param err Caught value whose driver code is inspected.
+ * @param code Expected MySQL driver error identifier.
+ */
 export function isMysqlError(
   err: unknown,
   code: string,
-): err is Error & { code: string; sqlMessage?: string } {
+): err is Error & {
+  /** Driver error identifier used to distinguish expected database failures. */
+  code: string;
+  /** Optional driver message used only to identify the violated unique constraint. */
+  sqlMessage?: string;
+} {
   return (
     typeof err === "object" &&
     err !== null &&
-    (err as { code?: unknown }).code === code
+    (
+      err as {
+        /** Driver error identifier used to distinguish expected database failures. */
+        code?: unknown;
+      }
+    ).code === code
   );
 }

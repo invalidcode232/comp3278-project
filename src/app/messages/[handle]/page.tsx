@@ -52,35 +52,38 @@ export default async function ConversationPage({
         {messages.length === 0 && (
           <p className="muted">No messages yet. Say hello.</p>
         )}
-        {messages.map((m) => {
-          const mine = m.sender_id === me.id;
-          return (
-            <div
-              key={m.id}
-              className={`flex ${mine ? "justify-end" : "justify-start"}`}
-            >
+        {messages.map(
+          /** Render each message once; sender identity determines right-side alignment, including self-messages. */
+          (m) => {
+            const mine = m.sender_id === me.id;
+            return (
               <div
-                className={`max-w-[75%] rounded-lg px-3 py-2 ${mine ? "bg-indigo-600 text-white" : "bg-gray-100"}`}
+                key={m.id}
+                className={`flex ${mine ? "justify-end" : "justify-start"}`}
               >
-                {m.body && (
-                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                )}
-                {m.image_id && (
-                  <img
-                    src={imageUrl(m.image_id)}
-                    alt=""
-                    className="mt-1 max-h-64 rounded"
-                  />
-                )}
                 <div
-                  className={`mt-1 text-xs ${mine ? "text-indigo-100" : "text-gray-500"}`}
+                  className={`max-w-[75%] rounded-lg px-3 py-2 ${mine ? "bg-indigo-600 text-white" : "bg-gray-100"}`}
                 >
-                  {formatTime(m.created_at)}
+                  {m.body && (
+                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                  )}
+                  {m.image_id && (
+                    <img
+                      src={imageUrl(m.image_id)}
+                      alt=""
+                      className="mt-1 max-h-64 rounded"
+                    />
+                  )}
+                  <div
+                    className={`mt-1 text-xs ${mine ? "text-indigo-100" : "text-gray-500"}`}
+                  >
+                    {formatTime(m.created_at)}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          },
+        )}
       </div>
 
       <div className="card">

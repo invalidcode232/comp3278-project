@@ -7,6 +7,8 @@ import { parseId } from "@/lib/validate";
  * GET /api/images/[id] — serves a stored BLOB with its real Content-Type.
  * Authorization is checked before ETag handling. Responses are never stored,
  * because reference changes can turn a public image into a private attachment.
+ *
+ * @param request Incoming HTTP request used for cookies or conditional response headers.
  */
 export async function GET(
   request: Request,

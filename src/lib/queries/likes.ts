@@ -11,7 +11,11 @@ import type { Db } from "../db";
  * meanwhile) into a warning; the DELETE then does nothing, which is harmless.
  * Returns true if the viewer now likes it.
  */
-/** Insert or remove the user/thread pair and return the resulting liked state. */
+/** Insert or remove the user/thread pair and return the resulting liked state.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param userId Stable UUID of the account involved in the operation.
+ * @param threadId Numeric identifier of the target thread.
+ */
 export async function toggleThreadLike(
   db: Db,
   userId: string,
@@ -29,7 +33,11 @@ export async function toggleThreadLike(
   return false;
 }
 
-/** Insert or remove the user/comment pair and return the resulting liked state. */
+/** Insert or remove the user/comment pair and return the resulting liked state.
+ * @param db Pool or transaction connection used for all queries in this operation.
+ * @param userId Stable UUID of the account involved in the operation.
+ * @param commentId Numeric identifier of the target comment.
+ */
 export async function toggleCommentLike(
   db: Db,
   userId: string,
