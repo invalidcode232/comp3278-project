@@ -9,8 +9,8 @@ earlier Google Doc proposal linked from `AGENTS.md`.
 
 This record distinguishes agreed behavior from the inspected baseline. The
 baseline observations come from source/schema review, not runtime validation.
-**This update records decisions only: no application changes have been made to
-implement them.** Pending changes require a subsequent implementation task.
+Implementation was authorized subsequently. The checklist below records progress;
+validation evidence is in `docs/VALIDATION.md`. Approval alone is not completion.
 
 ## Confirmed decisions — 12 November 2026
 
@@ -21,7 +21,7 @@ skipped, rather than resolved with invented dates or responsibilities.
 | --- | --- | --- | --- |
 | D01 | Skip logistics in this decision exercise. | The user said there was no need to discuss them. | No deadline, presentation slot, or responsibility allocation is established by this record. |
 | D02 | Keep the current feature scope. | Build on the existing application without deferring feature groups. | Accounts/profiles, threads, comments, likes, follows, collections, topics, images, and DMs have code in the baseline. Verify their behavior rather than treating their presence as acceptance evidence. |
-| D03 | Keep database-backed sessions. Use a 30-day inactivity expiry; authenticated activity renews database expiry and cookie lifetime at most once daily. | Preserve the existing authentication model while allowing active users to stay signed in without a write on every request. | Baseline sessions expire 30 days after creation and do not renew on activity. Sliding expiry and renewal throttling are pending. Preserve logout of the current session and deletion of all sessions when the account is deleted. |
+| D03 | Keep database-backed sessions. Use a 30-day inactivity expiry; authenticated activity renews database expiry and cookie lifetime at most once daily. | Preserve the existing authentication model while allowing active users to stay signed in without a write on every request. | Implemented daily-throttled renewal in the request proxy and conditional SQL. Database boundary/concurrency checks pass; browser checks are tracked separately. Preserve logout of the current session and deletion of all sessions when the account is deleted. |
 | D04 | Keep collections private. | Retain owner-only access. | Already enforced in the inspected read and mutation paths. No policy change needed. |
 | D05 | Keep each thread's topic fixed after creation. | Retain the existing editing scope. | Baseline edit operations update text/image only. No policy change needed. |
 | D06 | Keep the current account-deletion cascade, including both sides' DM history. | Retain the simpler deletion model. | Baseline removes the user's sessions, authored threads/comments, likes, follows, owned collections/links, and sent/received messages. Deleting their threads also removes other users' comments/likes and collection links to those threads. D09 adds cleanup of images left unreferenced. |
@@ -63,14 +63,14 @@ Text lengths below describe the baseline's JavaScript string-length checks
 
 ## Pending implementation and validation
 
-- [ ] D03: daily-throttled sliding session expiry, including cookie renewal.
+- [x] D03: daily-throttled sliding session expiry, including cookie renewal.
 - [ ] D07: self-messaging across schema, actions, queries, and UI.
 - [ ] D08: private-image authorization and permission-aware caching.
 - [ ] D09: immediate cleanup of images with no remaining references.
 - [ ] D10: consistent 10 MiB upload limits and request overhead allowance.
 - [ ] Verify preserved behavior and both local setup paths (D02/D04–D06/D11).
 
-These items are planned, not implemented or tested. There are no further pending
+Unchecked items remain pending; checked items have the evidence described above. There are no further pending
 choices from D02–D11; implementation details should follow the confirmed policies.
 If a consequential ambiguity arises, record it without silently changing policy.
 

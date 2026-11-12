@@ -14,3 +14,13 @@
   integration checks. It is separate from any existing project database.
 
 Runtime feature acceptance remains pending until the corresponding checks below.
+
+## 12 November 2026 — sliding sessions (D03)
+
+- `npm run typecheck` passes.
+- `RUN_DB_TESTS=1` with the disposable database settings and `npm run test:db`
+  passes: fresh session, just before/exactly at the daily boundary, two concurrent
+  renewals (one winner), expired session, revoked session.
+- Browser cookie renewal remains scheduled for the combined workflow check.
+- Proxy uses Next.js's Node runtime and response-cookie API:
+  <https://nextjs.org/docs/app/api-reference/file-conventions/proxy>.

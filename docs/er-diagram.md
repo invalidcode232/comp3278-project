@@ -46,6 +46,9 @@ Foreign-key columns (`author_id`, `topic_id`, `owner_id`, …) are not drawn as 
 | MESSAGE | `id` | body, created_at | |
 | IMAGE | `id` | sha256, mime_type, byte_size, data, created_at | |
 
+`SESSION.expires_at` supports daily-throttled sliding expiry: the previous renewal
+time is derived as `expires_at - 30 days`, so no extra stored attribute is needed.
+
 `handle`, `email` and `sha256` are candidate keys: they have UNIQUE constraints but are not the primary key. `handle` is kept separate from `id` so it can change without touching any foreign key.
 
 ## Relationship sets

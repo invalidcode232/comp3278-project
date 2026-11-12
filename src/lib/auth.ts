@@ -8,11 +8,13 @@ import {
   deleteExpiredSessions,
   deleteSession,
   getSessionUser,
-  SESSION_DAYS,
 } from "./queries/sessions";
 import type { SessionUser } from "./queries/sessions";
 
-const COOKIE = "sid";
+import {
+  SESSION_COOKIE as COOKIE,
+  sessionCookieOptions,
+} from "./session-policy";
 
 /** The logged-in user, or null. Cached so a page and its layout share one query. */
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
@@ -33,13 +35,7 @@ export async function startSession(userId: string): Promise<void> {
   const token = randomBytes(32).toString("hex");
   await deleteExpiredSessions(pool, userId);
   await createSession(pool, token, userId);
-  (await cookies()).set(COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.COOKIE_SECURE === "true",
-    path: "/",
-    maxAge: SESSION_DAYS * 24 * 60 * 60,
-  });
+  (await cookies()).set(COOKIE, token, sessionCookieOptions());
 }
 
 /** Delete the current cookie’s session row and remove the browser cookie. */

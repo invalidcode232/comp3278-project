@@ -191,7 +191,7 @@ How a request flows: a page (server component) calls `src/lib/queries/*` to read
 
 ### Design notes
 
-- **Sessions.** Login creates a row in `sessions` with a 256-bit random token and an expiry 30 days out, and stores the token in an `httpOnly`, `SameSite=Lax` cookie. Every request looks up the token with `expires_at > UTC_TIMESTAMP()`. Logging out deletes the row.
+- **Sessions.** Login creates a row in `sessions` with a 256-bit random token and an expiry 30 days out, and stores the token in an `httpOnly`, `SameSite=Lax` cookie. Every request looks up the token with `expires_at > UTC_TIMESTAMP()`. Authenticated activity renews the expiry and cookie for 30 days, at most once per 24 hours, through `src/proxy.ts`. An expired session cannot renew. Logging out deletes the row.
 - **Passwords** are hashed with bcrypt (cost 10) via `bcryptjs`.
 - **Images.** The type is detected from the file's first bytes, not trusted from the browser. Files over 5 MB are refused, in the browser before upload and again on the server. Images are stored once per SHA-256 and served with `Cache-Control: immutable` plus an ETag.
 - **Images are never deleted.** One image row can be shared by several users or posts, so deleting a thread leaves its image in place; cleaning those up would need reference counting. Image URLs are not access-controlled either: anyone who knows an image id can load it, including images sent in DMs.
@@ -236,3 +236,10 @@ To make it permanent, add `max_allowed_packet=64M` under `[mysqld]` in `my.cnf` 
 **`node: bad option: --env-file` or `SyntaxError` on `scripts/*.ts`.** Your Node is too old. Install Node 22.18+ (24 LTS recommended).
 
 **`.env` not found.** Run `cp .env.example .env` first; the npm scripts load it with `--env-file`.
+
+## Focused database checks
+
+With a disposable database initialized from the schema, set the normal `DB_*`
+environment variables and `RUN_DB_TESTS=1`, then run `npm run test:db`. Tests create
+and remove their own fixtures without resetting the database. Never point tests
+at a shared or production database.

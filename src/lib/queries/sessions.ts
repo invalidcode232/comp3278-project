@@ -1,7 +1,7 @@
-import type { RowDataPacket } from "mysql2/promise";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { Db } from "../db";
 
-export const SESSION_DAYS = 30;
+import { SESSION_DAYS } from "../session-policy";
 
 /** Minimal authenticated-user projection shared by server pages and actions. */
 export interface SessionUser {
@@ -23,8 +23,8 @@ export async function createSession(
 ): Promise<void> {
   await db.execute(
     `INSERT INTO sessions (token, user_id, expires_at)
-     VALUES (?, ?, UTC_TIMESTAMP() + INTERVAL 30 DAY)`,
-    [token, userId],
+     VALUES (?, ?, UTC_TIMESTAMP() + INTERVAL ? DAY)`,
+    [token, userId, SESSION_DAYS],
   );
 }
 
@@ -57,4 +57,20 @@ export async function deleteExpiredSessions(
     "DELETE FROM sessions WHERE user_id = ? AND expires_at <= UTC_TIMESTAMP()",
     [userId],
   );
+}
+
+/**
+ * Extend an active session to 30 days from now only after 24 hours since its
+ * last creation/renewal. expires_at - 30 days is the last renewal time, so no
+ * additional stored timestamp is needed. The predicate is atomic under races.
+ * Returns true only to the request responsible for refreshing the cookie.
+ */
+export async function renewSession(db: Db, token: string): Promise<boolean> {
+  const [result] = await db.execute<ResultSetHeader>(
+    `UPDATE sessions SET expires_at = UTC_TIMESTAMP() + INTERVAL ? DAY
+     WHERE token = ? AND expires_at > UTC_TIMESTAMP()
+       AND expires_at <= UTC_TIMESTAMP() + INTERVAL ? DAY`,
+    [SESSION_DAYS, token, SESSION_DAYS - 1],
+  );
+  return result.affectedRows === 1;
 }

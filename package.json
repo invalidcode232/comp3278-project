@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "db:schema": "node --env-file=.env scripts/apply-schema.ts",
     "db:seed": "node --env-file=.env scripts/seed.ts",
-    "db:reset": "npm run db:schema && npm run db:seed"
+    "db:reset": "npm run db:schema && npm run db:seed",
+    "test:db": "tsx --test tests/database.test.ts"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",
@@ -29,6 +30,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "tailwindcss": "4.3.5",
+    "tsx": "^4.23.15",
     "typescript": "5.9.3"
   }
 }

@@ -62,7 +62,8 @@ CREATE TABLE users (
 
 -- -----------------------------------------------------------------------------
 -- sessions: one row per logged-in browser. The random token lives in an
--- httpOnly cookie. CASCADE: deleting a user logs them out everywhere.
+-- httpOnly cookie. Activity renews expiry at most daily; expiry minus 30 days
+-- is the previous renewal time. CASCADE: deleting a user logs them out everywhere.
 -- -----------------------------------------------------------------------------
 CREATE TABLE sessions (
   token       CHAR(64) CHARACTER SET ascii NOT NULL,           -- 32 random bytes, hex

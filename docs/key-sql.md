@@ -175,3 +175,11 @@ ORDER BY tp.name;
 ```
 
 `LEFT JOIN` keeps topics with no threads. `COUNT(t.id)` (not `COUNT(*)`) counts 0 for them, because the NULLs from the unmatched join are not counted.
+
+## Sliding sessions
+
+Activity conditionally updates `sessions.expires_at` to UTC now plus 30 days
+only if the token has not expired and its current expiry is at most 29 days away.
+The expiry minus 30 days represents the previous renewal time, avoiding a
+redundant attribute. Concurrent requests compete on the same row: only the
+request that changes it refreshes the cookie. Logout deletes the token.
