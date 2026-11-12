@@ -29,7 +29,7 @@ skipped, rather than resolved with invented dates or responsibilities.
 | D08 | Require participant access to DM-only images. Images also used publicly remain public. Caching must respect permissions. | Protect private attachments without hiding images that have a public reference. | Implemented reference/participant authorization before conditional response handling, with private no-store caching. Database visibility and browser/HTTP access checks pass. An image's content hash or deduplication does not itself grant access. |
 | D09 | Delete images immediately when their last reference is removed. | Reclaim unused image data while preserving shared images. | Implemented cleanup of all four reference types within serialized image transactions, including replacement and deletion cascades. Database checks cover sharing, rollback, concurrent deduplication, and final-reference deletion. |
 | D10 | Increase the image upload limit to 10 MiB; keep other limits and supported formats unchanged. | Allow larger image uploads without changing text/profile limits. | Implemented a 10 MiB cap in server/browser validation and the schema, with a preserving migration for existing databases. Server Action and proxy request allowances are 12 MB for multipart overhead. |
-| D11 | Keep both local MySQL and Docker MySQL setup; run locally. | Preserve both existing setup options without adding hosted deployment. | Both paths are documented. Clean-checkout reproduction still needs verification. Database schema/reset commands recreate the database and must not be run against data that must be preserved. |
+| D11 | Keep both local MySQL and Docker MySQL setup; run locally. | Preserve both existing setup options without adding hosted deployment. | Both paths remain documented. A fresh checkout was installed, seeded, built, and browser-tested against disposable Docker MySQL 8.4.13 over local TCP; a separate native OS MySQL installation was not tested. Database schema/reset commands recreate the database and must not be run against data that must be preserved. |
 
 ## Adopted technical baseline
 
@@ -69,11 +69,12 @@ Text lengths below describe the baseline's JavaScript string-length checks
 - [x] D09: immediate cleanup of images with no remaining references.
 - [x] D10: consistent 10 MiB upload limits and request overhead allowance.
 - [x] Verify preserved behavior through database and browser checks (D02/D04–D06).
-- [ ] Complete the fresh-checkout setup check; native OS MySQL installation is
-  not independently tested (D11).
+- [x] Fresh-checkout installation, schema/seed, build, database checks, and browser
+  acceptance against Docker MySQL 8.4.13 over local TCP (D11). Native OS MySQL
+  installation remains an environment-specific verification limitation.
 
-Unchecked items remain pending; checked items have the evidence described above. There are no further pending
-choices from D02–D11; implementation details should follow the confirmed policies.
+All agreed implementation items above are complete with the recorded checks.
+There are no further pending choices from D02–D11; implementation details should follow the confirmed policies.
 If a consequential ambiguity arises, record it without silently changing policy.
 
 ## Recording later resolutions

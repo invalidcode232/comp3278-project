@@ -79,3 +79,23 @@ Runtime feature acceptance remains pending until the corresponding checks below.
 - Regenerated and visually checked the ER diagram; no new entity/attribute was
   needed for these policies. Cross-relationship access/cleanup rules are explained
   alongside the diagram rather than assigned non-course notation.
+
+## 12 November 2026 — fresh checkout at 94fed09
+
+- Cloned the committed source into a separate temporary directory, with no
+  inherited `node_modules`, build output, or environment file.
+- Created a local `.env` for the disposable MySQL 8.4.13 container, then ran
+  `npm ci`, `npm run db:reset`, and `npm run build`: all passed.
+- Seed result: 7 users, 5 topics, 20 threads, 40 comments, 71 thread likes,
+  49 comment likes, 15 follows, 3 collections, 12 saved links, 15 messages,
+  and 8 deduplicated images.
+- Ran database tests against the fresh schema: five policy subtests passed
+  (six tests including the enclosing test). Started its production build and
+  reran the browser acceptance workflow: passed.
+- Earlier runs verified both preserving migrations against the old baseline.
+  Fresh installation and upgrading existing schema are therefore both covered.
+- Environment: macOS, Node 24.12.0, Docker MySQL 8.4.13, installed Google Chrome.
+  A separately installed native MySQL server and other operating systems were
+  not tested; their setup instructions remain supported but unverified here.
+- Tests used only the disposable database. No existing group database was
+  migrated or reset. Temporary servers/container/checkouts were removed afterward.
