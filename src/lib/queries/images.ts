@@ -74,8 +74,8 @@ export async function getImage(db: Db, id: number): Promise<ImageRow | null> {
 
 /**
  * Read an image only if currently public or attached to one of the viewer's DMs.
- * Public references are avatars, threads, and comments. Private collections do
- * not make saved public threads private. NULL viewer IDs cannot match DM access.
+ * Public references are avatars and live posts. Private collections do
+ * not make saved public root posts private. NULL viewer IDs cannot match DM access.
  * @param db Query executor for this request.
  * @param id Requested image identifier.
  * @param viewerId Authenticated user UUID, or null for a public visitor.
@@ -90,8 +90,7 @@ export async function getVisibleImage(
     `SELECT i.mime_type, i.sha256, i.data FROM images i
      WHERE i.id = ? AND (
        EXISTS (SELECT 1 FROM users u WHERE u.avatar_image_id = i.id)
-       OR EXISTS (SELECT 1 FROM threads t WHERE t.image_id = i.id)
-       OR EXISTS (SELECT 1 FROM comments c WHERE c.image_id = i.id)
+       OR EXISTS (SELECT 1 FROM posts t WHERE t.image_id = i.id)
        OR EXISTS (SELECT 1 FROM messages m WHERE m.image_id = i.id
                   AND (m.sender_id = ? OR m.recipient_id = ?))
      )`,
@@ -112,8 +111,7 @@ export async function deleteUnreferencedImages(db: Db): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
     `DELETE i FROM images i
      WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.avatar_image_id = i.id)
-       AND NOT EXISTS (SELECT 1 FROM threads t WHERE t.image_id = i.id)
-       AND NOT EXISTS (SELECT 1 FROM comments c WHERE c.image_id = i.id)
+       AND NOT EXISTS (SELECT 1 FROM posts t WHERE t.image_id = i.id)
        AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.image_id = i.id)`,
   );
   return result.affectedRows;

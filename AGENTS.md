@@ -55,16 +55,23 @@ dependencies and commit the lockfile.
 
 ### Confirmed product policies
 
-These are intended behavior, not a claim that the implementation already complies.
-`DECISIONS.md` records the baseline differences and pending implementation work.
+`DECISIONS.md` records confirmed behavior and implementation status; `docs/VALIDATION.md` records checks.
 
 - Sessions expire after 30 days of inactivity. Authenticated activity renews both
   the database expiry and cookie lifetime at most once daily. Preserve logout of
   the current session and invalidation of all sessions on account deletion.
 - Collections remain private to their owner. Thread topics remain fixed after
   creation; authors may edit text and images.
-- Preserve account-deletion cascades, including both sent and received messages:
-  the other participant also loses that message history.
+- Root posts and replies share `posts`: roots have NULL parent, replies reference
+  an existing post. Parent and root topic are immutable; only roots store topics.
+  Erase deleted posts into anonymous placeholders, preserving descendants. Account
+  deletion erases owned posts before removing the account; others’ replies survive.
+  Both sent and received DMs still cascade: the peer loses that message history.
+- Private collections save live root posts only. Deleted posts lose likes/saved
+  links and image references. Never physically cascade a post's reply subtree.
+- Follow the inspected Threads visual structure and measured composer entrances;
+  keep counter/menu/exit approximations explicit. Preserve accessible focus,
+  reduced-motion support and real project capabilities, not dummy controls.
 - Any signed-in user may message any user, including themselves. A self-message
   appears exactly once, on the sending side; conversation queries must not
   duplicate self-messages.

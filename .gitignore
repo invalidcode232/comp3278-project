@@ -71,3 +71,6 @@ nbproject/private/
 # Local browser-test evidence
 /test-results/
 /playwright-report/
+
+# Local database backups can contain private content.
+.local-backups/

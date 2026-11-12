@@ -118,3 +118,32 @@ Runtime feature acceptance remains pending until the corresponding checks below.
   changed by this inspection.
 - No database schema change is included; unified posts/replies and the larger
   visual refactor remain pending as recorded in DECISIONS.md.
+
+## 12 November 2026 — unified posts and visual refactor
+
+- Replaced separate thread/comment storage with posts, recursive parent links,
+  post_likes and collection_posts. Roots retain their existing IDs; migrated
+  replies receive IDs above the former root maximum.
+- Restored a local database backup into disposable MySQL and verified the
+  preserving migration: 61 posts, 125 likes and 13 saved links. Fixed a legacy
+  foreign-key-name collision discovered during this rehearsal.
+- Fresh schema and seed pass: 10 tables, 20 roots, 40 replies (including a reply
+  to a reply), 120 likes, 7 users, 5 topics, 15 follows, 3 collections, 12 saved
+  links, 15 messages and 8 images. All seven database tests pass.
+- Type checking, production build and browser acceptance pass. Browser coverage
+  includes nested creation/editing, ancestor context, deleted placeholders,
+  surviving descendants after account deletion, private root saves, ownership,
+  image visibility, sessions, optimistic like rollback and reduced motion.
+  One final invocation omitted the test safety flag and stopped before mutations;
+  the corrected invocation passed.
+- Visually checked desktop and 390px/320px screenshots, including nested replies
+  and the persistent message composer; checked horizontal overflow on main routes.
+  Composer entrance matches measured Safari reference values; counter, menu and
+  exit timing remain approximations. No external Threads content was modified.
+- Updated relational schema, representative SQL and Chen ER source/SVG/PNG.
+  Rendered with Graphviz neato and inspected the result; Graphviz falls back to
+  straight relationship edges where its node margins touch.
+- Stopped the real local app, made a fresh restricted-permission ignored backup,
+  and migrated its existing database successfully without resetting it: all
+  61 posts, 125 likes and 13 saved links preserved. Restarted the production app
+  at http://127.0.0.1:3000 and verified a successful home-page response.

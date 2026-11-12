@@ -1,5 +1,13 @@
-import { createThread, deleteThread } from "../src/lib/queries/threads";
-import { createComment, updateComment } from "../src/lib/queries/comments";
+import {
+  createPost,
+  deletePost,
+  updatePost,
+  getPost,
+  listReplies,
+  listAncestors,
+} from "../src/lib/queries/posts";
+import { deleteUser } from "../src/lib/queries/users";
+import { setPostLike } from "../src/lib/queries/likes";
 import { saveImage } from "../src/lib/upload";
 import { withImageTransaction } from "../src/lib/image-lifecycle";
 import {
@@ -196,7 +204,7 @@ test("database-backed policy boundaries", async (t) => {
           );
           assert.deepEqual(ids, [imageId, imageId]);
           await withImageTransaction(async (conn) => {
-            await conn.execute("DELETE FROM users WHERE id = ?", [peer]);
+            await deleteUser(conn, peer);
           });
           assert.ok(
             await getImage(pool, imageId),
@@ -214,7 +222,7 @@ test("database-backed policy boundaries", async (t) => {
           );
         } finally {
           await withImageTransaction(async (conn) => {
-            await conn.execute("DELETE FROM users WHERE id = ?", [peer]);
+            await deleteUser(conn, peer);
           });
         }
       },
@@ -242,15 +250,17 @@ test("database-backed policy boundaries", async (t) => {
             byteSize: other.length,
             data: other,
           });
-          threadId = await createThread(conn, {
+          threadId = await createPost(conn, {
             authorId: userId,
             topicId: 1,
+            parentId: null,
             body: null,
             imageId: threadImage,
           });
-          commentId = await createComment(conn, {
+          commentId = await createPost(conn, {
             authorId: userId,
-            threadId,
+            parentId: threadId,
+            topicId: null,
             body: "Comment",
             imageId: commentImage,
           });
@@ -259,22 +269,103 @@ test("database-backed policy boundaries", async (t) => {
         assert.ok(await getVisibleImage(pool, commentImage, null));
         assert.equal(
           await withImageTransaction((conn) =>
-            deleteThread(conn, threadId, randomUUID()),
+            deletePost(conn, threadId, randomUUID()),
           ),
           false,
         );
         assert.ok(await getImage(pool, threadImage));
         await withImageTransaction((conn) =>
-          updateComment(conn, commentId, userId, {
+          updatePost(conn, commentId, userId, {
             body: "Text only now",
             imageId: null,
           }),
         );
         assert.equal(await getImage(pool, commentImage), null);
         await withImageTransaction((conn) =>
-          deleteThread(conn, threadId, userId),
+          deletePost(conn, threadId, userId),
         );
         assert.equal(await getImage(pool, threadImage), null);
+      },
+    );
+
+    /** Nested replies retain their ancestry after parent and account erasure. */
+    await t.test(
+      "unified post ancestry, tombstones, constraints and idempotent likes",
+      async () => {
+        const peer = randomUUID();
+        await pool.execute(
+          "INSERT INTO users (id,handle,email,password_hash,display_name) VALUES (?,?,?,?,?)",
+          [
+            peer,
+            `peer_${peer.slice(0, 8)}`,
+            `${peer}@example.test`,
+            "x".repeat(60),
+            "Nested peer",
+          ],
+        );
+        try {
+          const root = await withImageTransaction((db) =>
+            createPost(db, {
+              authorId: userId,
+              parentId: null,
+              topicId: 1,
+              body: "Root",
+              imageId: null,
+            }),
+          );
+          const reply = await withImageTransaction((db) =>
+            createPost(db, {
+              authorId: peer,
+              parentId: root,
+              topicId: null,
+              body: "Reply",
+              imageId: null,
+            }),
+          );
+          const nested = await withImageTransaction((db) =>
+            createPost(db, {
+              authorId: userId,
+              parentId: reply,
+              topicId: null,
+              body: "Nested",
+              imageId: null,
+            }),
+          );
+          assert.deepEqual(
+            (await listAncestors(pool, userId, nested)).map((p) => p.id),
+            [root, reply],
+          );
+          await assert.rejects(
+            withImageTransaction((db) =>
+              createPost(db, {
+                authorId: userId,
+                parentId: root,
+                topicId: 1,
+                body: "Bad topic",
+                imageId: null,
+              }),
+            ),
+            /chk_posts_topic/,
+          );
+          await withImageTransaction(async (db) => {
+            await setPostLike(db, userId, reply, true);
+            await setPostLike(db, userId, reply, true);
+          });
+          assert.equal((await getPost(pool, userId, reply))?.like_count, 1);
+          await withImageTransaction((db) => deletePost(db, root, userId));
+          const deleted = await getPost(pool, userId, root);
+          assert.ok(deleted?.deleted_at);
+          assert.equal(deleted?.author_id, null);
+          assert.equal(deleted?.body, null);
+          assert.equal((await listReplies(pool, userId, root))[0].id, reply);
+          await withImageTransaction((db) => deleteUser(db, peer));
+          assert.equal((await getPost(pool, userId, reply))?.author_id, null);
+          assert.equal((await getPost(pool, userId, reply))?.like_count, 0);
+          assert.equal((await getPost(pool, userId, nested))?.body, "Nested");
+          assert.equal((await listAncestors(pool, userId, nested)).length, 2);
+        } finally {
+          await withImageTransaction((db) => deleteUser(db, peer));
+        }
       },
     );
 
@@ -327,7 +418,7 @@ test("database-backed policy boundaries", async (t) => {
     });
   } finally {
     await withImageTransaction(async (conn) => {
-      await conn.execute("DELETE FROM users WHERE id = ?", [userId]);
+      await deleteUser(conn, userId);
     });
     await pool.end();
   }

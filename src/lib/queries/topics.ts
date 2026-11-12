@@ -14,7 +14,7 @@ export interface TopicRow {
 /** Seeded topic projection extended with the current number of threads. */
 export interface TopicWithCount extends TopicRow {
   /** Computed number of associated threads; not a stored counter. */
-  thread_count: number;
+  post_count: number;
 }
 
 /** LEFT JOIN keeps topics that have no threads yet (count 0).
@@ -22,9 +22,9 @@ export interface TopicWithCount extends TopicRow {
  */
 export async function listTopicsWithCounts(db: Db): Promise<TopicWithCount[]> {
   const [rows] = await db.execute<(TopicWithCount & RowDataPacket)[]>(
-    `SELECT tp.id, tp.name, tp.description, COUNT(t.id) AS thread_count
+    `SELECT tp.id, tp.name, tp.description, COUNT(t.id) AS post_count
      FROM topics tp
-     LEFT JOIN threads t ON t.topic_id = tp.id
+     LEFT JOIN posts t ON t.topic_id = tp.id AND t.parent_id IS NULL AND t.deleted_at IS NULL
      GROUP BY tp.id, tp.name, tp.description
      ORDER BY tp.name`,
   );

@@ -471,7 +471,7 @@ async function main(): Promise<void> {
       const created = minutesAgo(ago);
       const updated = edited ? minutesAgo(ago - 15) : created;
       const [r] = await conn.execute<ResultSetHeader>(
-        `INSERT INTO threads (author_id, topic_id, body, image_id, created_at, updated_at)
+        `INSERT INTO posts (author_id, topic_id, body, image_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [uid(author), topicIds[topic], body, imageId, created, updated],
       );
@@ -490,10 +490,11 @@ async function main(): Promise<void> {
       const imageId = image ? await insertImage(conn, image) : null;
       const edited = commentIds.length % 9 === 4; // a few edited comments
       const [r] = await conn.execute<ResultSetHeader>(
-        `INSERT INTO comments (thread_id, author_id, body, image_id, created_at, updated_at)
+        `INSERT INTO posts (parent_id, author_id, body, image_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
-          threadIds[ti],
+          // Alice's thanks replies to Carol's reply; all other fixtures target roots.
+          commentIds.length === 2 ? commentIds[1] : threadIds[ti],
           uid(author),
           body,
           imageId,
@@ -510,7 +511,7 @@ async function main(): Promise<void> {
       for (const [ui, u] of users.entries()) {
         if (u.key !== t[0] && (ti * 3 + ui * 5) % 7 < 4) {
           await conn.execute(
-            "INSERT INTO thread_likes (user_id, thread_id) VALUES (?, ?)",
+            "INSERT INTO post_likes (user_id, post_id) VALUES (?, ?)",
             [uid(u.key), threadIds[ti]],
           );
           threadLikes++;
@@ -522,7 +523,7 @@ async function main(): Promise<void> {
       for (const [ui, u] of users.entries()) {
         if (u.key !== c[1] && (ci * 2 + ui * 3) % 9 < 2) {
           await conn.execute(
-            "INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)",
+            "INSERT INTO post_likes (user_id, post_id) VALUES (?, ?)",
             [uid(u.key), commentIds[ci]],
           );
           commentLikes++;
@@ -546,7 +547,7 @@ async function main(): Promise<void> {
       );
       for (const [k, ti] of items.entries()) {
         await conn.execute(
-          "INSERT INTO collection_threads (collection_id, thread_id, saved_at) VALUES (?, ?, ?)",
+          "INSERT INTO collection_posts (collection_id, post_id, saved_at) VALUES (?, ?, ?)",
           [r.insertId, threadIds[ti], minutesAgo(900 - k * 30)],
         );
       }
@@ -566,10 +567,10 @@ async function main(): Promise<void> {
 
     const [counts] = await conn.query<RowDataPacket[]>(
       `SELECT (SELECT COUNT(*) FROM users) users, (SELECT COUNT(*) FROM topics) topics,
-              (SELECT COUNT(*) FROM threads) threads, (SELECT COUNT(*) FROM comments) comments,
-              (SELECT COUNT(*) FROM thread_likes) thread_likes, (SELECT COUNT(*) FROM comment_likes) comment_likes,
+              (SELECT COUNT(*) FROM posts WHERE parent_id IS NULL) roots, (SELECT COUNT(*) FROM posts WHERE parent_id IS NOT NULL) replies,
+              (SELECT COUNT(*) FROM post_likes) post_likes,
               (SELECT COUNT(*) FROM follows) follows, (SELECT COUNT(*) FROM collections) collections,
-              (SELECT COUNT(*) FROM collection_threads) collection_threads, (SELECT COUNT(*) FROM messages) messages,
+              (SELECT COUNT(*) FROM collection_posts) collection_posts, (SELECT COUNT(*) FROM messages) messages,
               (SELECT COUNT(*) FROM images) images`,
     );
     const imageRefs =
@@ -594,7 +595,7 @@ async function main(): Promise<void> {
       `Images: ${imageRefs} references stored as ${counts[0].images} rows (duplicates reused by SHA-256).`,
     );
     console.log(
-      `Likes inserted: ${threadLikes} thread, ${commentLikes} comment.`,
+      `Likes inserted into post_likes: ${threadLikes} thread, ${commentLikes} comment.`,
     );
     console.log(
       `Demo logins: ${users
@@ -605,12 +606,10 @@ async function main(): Promise<void> {
         .join(", ")} / password: ${PASSWORD}`,
     );
   } catch (err) {
-    await conn
-      .rollback()
-      .catch(
-        /** Preserve the original seed failure if connection cleanup also fails. */
-        () => {},
-      );
+    await conn.rollback().catch(
+      /** Preserve the original seed failure if connection cleanup also fails. */
+      () => {},
+    );
     throw err;
   } finally {
     conn.release();

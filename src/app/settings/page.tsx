@@ -62,7 +62,7 @@ export default async function SettingsPage() {
           </div>
           <div>
             <span className="label">Avatar</span>
-            <div className="flex items-center gap-4">
+            <div className="avatar-editor">
               <Avatar
                 imageId={user.avatar_image_id}
                 name={user.display_name}
@@ -72,7 +72,8 @@ export default async function SettingsPage() {
                 type="file"
                 name="avatar"
                 accept={ACCEPT_IMAGES}
-                className="text-sm"
+                className="min-w-0 max-w-full text-sm"
+                aria-label="Avatar image"
               />
               {user.avatar_image_id && (
                 <label className="text-sm">
@@ -95,8 +96,9 @@ export default async function SettingsPage() {
           Delete account
         </h2>
         <p className="mb-3 text-sm">
-          This permanently deletes your account with all your threads, comments,
-          likes, follows, collections and messages. It cannot be undone.
+          This permanently deletes your account, post content, likes, follows,
+          collections and messages. Other people’s replies remain under
+          deleted-post placeholders. It cannot be undone.
         </p>
         <ActionForm
           action={deleteAccountAction}

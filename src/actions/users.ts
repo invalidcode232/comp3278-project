@@ -74,8 +74,8 @@ export async function deleteAccountAction(
   if (str(formData, "confirm_handle") !== me.handle) {
     return { error: `Type your handle (${me.handle}) exactly to confirm.` };
   }
-  // ON DELETE CASCADE removes sessions, threads, comments, likes, follows,
-  // collections and messages in the same statement.
+  // Erase owned post content first, retaining reply ancestry; the remaining
+  // account-owned records and both DM directions cascade in this transaction.
   await withImageTransaction(
     /** Delete the current account and its cascades before cleaning unused images. */
     (conn) => deleteUser(conn, me.id),

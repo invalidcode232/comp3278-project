@@ -20,7 +20,7 @@ export default async function TopicsPage() {
                 <div className="font-medium">{t.name}</div>
                 <p className="muted">{t.description}</p>
                 <p className="mt-1 text-xs text-gray-500">
-                  {t.thread_count} threads
+                  {t.post_count} threads
                 </p>
               </Link>
             </li>

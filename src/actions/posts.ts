@@ -7,11 +7,11 @@ import { redirect } from "next/navigation";
 import { isMysqlError, pool } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
-  createThread,
-  deleteThread,
-  getThread,
-  updateThread,
-} from "@/lib/queries/threads";
+  createPost,
+  deletePost,
+  getPost,
+  updatePost,
+} from "@/lib/queries/posts";
 import { getUploadedFile, saveImage } from "@/lib/upload";
 import {
   errorMessage,
@@ -25,14 +25,17 @@ import {
  * @param _prev Previous form feedback required by useActionState; not used for authorization.
  * @param formData Submitted fields; caller identity is resolved separately from the session.
  */
-export async function createThreadAction(
+export async function createPostAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const me = await requireUser();
   let threadId: number;
   try {
-    const topicId = id(formData.get("topic_id"));
+    const parentId = formData.get("parent_id")
+      ? id(formData.get("parent_id"))
+      : null;
+    const topicId = parentId === null ? id(formData.get("topic_id")) : null;
     const body = optionalText(formData, "body");
     const file = getUploadedFile(formData);
     if (!body && !file)
@@ -43,13 +46,26 @@ export async function createThreadAction(
     threadId = await withImageTransaction(
       /** Create the optional BLOB and thread together; return the new thread ID. */
       async (conn) => {
+        if (parentId !== null) {
+          const parent = await getPost(conn, me.id, parentId);
+          if (!parent || parent.deleted_at)
+            throw new InputError(
+              "That post was deleted. Reply to a surviving post instead.",
+            );
+        }
         const imageId = file ? await saveImage(conn, file) : null;
-        return createThread(conn, { authorId: me.id, topicId, body, imageId });
+        return createPost(conn, {
+          authorId: me.id,
+          parentId,
+          topicId,
+          body,
+          imageId,
+        });
       },
     );
   } catch (err) {
     if (isMysqlError(err, "ER_NO_REFERENCED_ROW_2"))
-      return { error: "Pick a valid topic." };
+      return { error: "That topic or parent post no longer exists." };
     const msg = errorMessage(err);
     if (msg) return { error: msg };
     throw err;
@@ -62,17 +78,17 @@ export async function createThreadAction(
  * @param _prev Previous form feedback required by useActionState; not used for authorization.
  * @param formData Submitted fields; caller identity is resolved separately from the session.
  */
-export async function updateThreadAction(
+export async function updatePostAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const me = await requireUser();
   let threadId: number;
   try {
-    threadId = id(formData.get("thread_id"));
-    const current = await getThread(pool, me.id, threadId);
-    if (!current || current.author_id !== me.id)
-      throw new InputError("You can only edit your own threads.");
+    threadId = id(formData.get("post_id"));
+    const current = await getPost(pool, me.id, threadId);
+    if (!current || current.deleted_at || current.author_id !== me.id)
+      throw new InputError("You can only edit your own posts.");
 
     const body = optionalText(formData, "body");
     const file = getUploadedFile(formData);
@@ -89,8 +105,8 @@ export async function updateThreadAction(
           : removeImage
             ? null
             : current.image_id;
-        const ok = await updateThread(conn, threadId, me.id, { body, imageId });
-        if (!ok) throw new InputError("You can only edit your own threads.");
+        const ok = await updatePost(conn, threadId, me.id, { body, imageId });
+        if (!ok) throw new InputError("You can only edit your own posts.");
       },
     );
   } catch (err) {
@@ -102,15 +118,15 @@ export async function updateThreadAction(
   redirect(`/threads/${threadId}`);
 }
 
-/** Delete only the authenticated author’s thread and dependent records, then redirect home.
+/** Delete only the authenticated author’s post content, preserving descendants, then redirect home.
  * @param formData Submitted fields; caller identity is resolved separately from the session.
  */
-export async function deleteThreadAction(formData: FormData): Promise<void> {
+export async function deletePostAction(formData: FormData): Promise<void> {
   const me = await requireUser();
   await withImageTransaction(
-    /** Delete the owned thread and cascaded comments before image cleanup. */
-    (conn) => deleteThread(conn, id(formData.get("thread_id")), me.id),
+    /** Erase the owned post and remove its saved/like links before image cleanup. */
+    (conn) => deletePost(conn, id(formData.get("post_id")), me.id),
   );
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(`/threads/${id(formData.get("post_id"))}`);
 }

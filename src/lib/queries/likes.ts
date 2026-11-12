@@ -1,56 +1,32 @@
-import type { ResultSetHeader } from "mysql2/promise";
 import type { Db } from "../db";
 
-/*
- * Like toggles. The composite PRIMARY KEY (user_id, thread_id) means a user
- * can like a thread at most once, so:
- *   INSERT IGNORE inserted a row  -> it was not liked before; now it is.
- *   INSERT IGNORE inserted nothing -> it was already liked; DELETE to unlike.
- * No "SELECT first" round trip, and two quick clicks can never create two rows.
- * Note: INSERT IGNORE also turns a foreign-key failure (thread deleted
- * meanwhile) into a warning; the DELETE then does nothing, which is harmless.
- * Returns true if the viewer now likes it.
+/** Set the authenticated user's desired like state on a live post. Caller owns the transaction.
+ * The row lock coordinates with deletion, while the composite key makes retries idempotent.
+ * @param db Transaction connection.
+ * @param userId Authenticated account UUID.
+ * @param postId Root or reply identifier.
+ * @param liked Desired state, not a non-idempotent toggle.
  */
-/** Insert or remove the user/thread pair and return the resulting liked state.
- * @param db Pool or transaction connection used for all queries in this operation.
- * @param userId Stable UUID of the account involved in the operation.
- * @param threadId Numeric identifier of the target thread.
- */
-export async function toggleThreadLike(
+export async function setPostLike(
   db: Db,
   userId: string,
-  threadId: number,
-): Promise<boolean> {
-  const [ins] = await db.execute<ResultSetHeader>(
-    "INSERT IGNORE INTO thread_likes (user_id, thread_id) VALUES (?, ?)",
-    [userId, threadId],
+  postId: number,
+  liked: boolean,
+): Promise<void> {
+  const [rows] = await db.execute(
+    "SELECT id FROM posts WHERE id=? AND deleted_at IS NULL FOR UPDATE",
+    [postId],
   );
-  if (ins.affectedRows === 1) return true;
-  await db.execute(
-    "DELETE FROM thread_likes WHERE user_id = ? AND thread_id = ?",
-    [userId, threadId],
-  );
-  return false;
-}
-
-/** Insert or remove the user/comment pair and return the resulting liked state.
- * @param db Pool or transaction connection used for all queries in this operation.
- * @param userId Stable UUID of the account involved in the operation.
- * @param commentId Numeric identifier of the target comment.
- */
-export async function toggleCommentLike(
-  db: Db,
-  userId: string,
-  commentId: number,
-): Promise<boolean> {
-  const [ins] = await db.execute<ResultSetHeader>(
-    "INSERT IGNORE INTO comment_likes (user_id, comment_id) VALUES (?, ?)",
-    [userId, commentId],
-  );
-  if (ins.affectedRows === 1) return true;
-  await db.execute(
-    "DELETE FROM comment_likes WHERE user_id = ? AND comment_id = ?",
-    [userId, commentId],
-  );
-  return false;
+  if (!(rows as unknown[]).length)
+    throw new Error("This post is no longer available.");
+  if (liked)
+    await db.execute(
+      "INSERT IGNORE INTO post_likes (user_id,post_id) VALUES (?,?)",
+      [userId, postId],
+    );
+  else
+    await db.execute("DELETE FROM post_likes WHERE user_id=? AND post_id=?", [
+      userId,
+      postId,
+    ]);
 }

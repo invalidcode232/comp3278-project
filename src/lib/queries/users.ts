@@ -134,18 +134,27 @@ export async function updateProfile(
   );
 }
 
-/**
- * Delete account. One statement is enough: every table that references
- * users.id has ON DELETE CASCADE (sessions, threads -> comments -> likes,
- * comments, likes, follows in both directions, collections -> collection_threads,
- * messages sent and received). InnoDB runs the whole cascade atomically.
- *
- * @param db Pool or transaction connection used for all queries in this operation.
- * @param id Stable identifier of the requested record.
+/** Erase the account's posts and identity, preserving other authors' replies. Caller owns an image transaction.
+ * Remaining sessions, follows, collections, likes and both DM directions cascade from the account.
+ * @param db Transaction connection.
+ * @param id Account UUID to delete.
  */
 export async function deleteUser(db: Db, id: string): Promise<boolean> {
+  await db.execute(
+    "DELETE pl FROM post_likes pl JOIN posts p ON p.id=pl.post_id WHERE p.author_id=?",
+    [id],
+  );
+  await db.execute(
+    "DELETE cp FROM collection_posts cp JOIN posts p ON p.id=cp.post_id WHERE p.author_id=?",
+    [id],
+  );
+  await db.execute(
+    `UPDATE posts SET body=NULL,image_id=NULL,author_id=NULL,deleted_at=UTC_TIMESTAMP()
+                    WHERE author_id=?`,
+    [id],
+  );
   const [result] = await db.execute<ResultSetHeader>(
-    "DELETE FROM users WHERE id = ?",
+    "DELETE FROM users WHERE id=?",
     [id],
   );
   return result.affectedRows === 1;

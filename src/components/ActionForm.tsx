@@ -103,12 +103,24 @@ export function ActionForm({
       }
     >
       {children}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
       {!error && state?.ok && (
-        <p className="text-sm text-green-700">{state.ok}</p>
+        <p role="status" className="text-sm text-green-700">
+          {state.ok}
+        </p>
       )}
       <button type="submit" disabled={pending} className={buttonClassName}>
-        {pending ? "Working…" : submitLabel}
+        {pending
+          ? submitLabel === "Send"
+            ? "Sending…"
+            : submitLabel === "Post" || submitLabel === "Reply"
+              ? "Posting…"
+              : "Saving…"
+          : submitLabel}
       </button>
     </form>
   );

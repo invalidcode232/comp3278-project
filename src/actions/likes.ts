@@ -1,29 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { pool } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { toggleCommentLike, toggleThreadLike } from "@/lib/queries/likes";
+import { setPostLike } from "@/lib/queries/likes";
+import { withImageTransaction } from "@/lib/image-lifecycle";
 import { id } from "@/lib/validate";
 
-/** Toggle the authenticated user’s like on the submitted thread and refresh counts.
- * @param formData Submitted fields; caller identity is resolved separately from the session.
+/** Persist a desired like state for a root or reply; identity always comes from the session.
+ * @param data Target post ID and desired boolean state.
  */
-export async function toggleThreadLikeAction(
-  formData: FormData,
-): Promise<void> {
+export async function setPostLikeAction(data: FormData): Promise<void> {
   const me = await requireUser();
-  await toggleThreadLike(pool, me.id, id(formData.get("thread_id")));
-  revalidatePath("/", "layout");
-}
-
-/** Toggle the authenticated user’s like on the submitted comment and refresh counts.
- * @param formData Submitted fields; caller identity is resolved separately from the session.
- */
-export async function toggleCommentLikeAction(
-  formData: FormData,
-): Promise<void> {
-  const me = await requireUser();
-  await toggleCommentLike(pool, me.id, id(formData.get("comment_id")));
+  await withImageTransaction(
+    /** Coordinate likes and post erasure using the same transaction ordering. */
+    (db) =>
+      setPostLike(
+        db,
+        me.id,
+        id(data.get("post_id")),
+        data.get("liked") === "true",
+      ),
+  );
   revalidatePath("/", "layout");
 }

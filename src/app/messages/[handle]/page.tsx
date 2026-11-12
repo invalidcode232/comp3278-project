@@ -1,3 +1,4 @@
+import { ConversationScroll } from "@/components/ConversationScroll";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sendMessageAction } from "@/actions/messages";
@@ -29,8 +30,8 @@ export default async function ConversationPage({
   const messages = await listConversation(pool, me.id, partner.id);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
+    <div className="conversation">
+      <div className="conversation-heading">
         <Link href="/messages" className="link text-sm">
           ← Messages
         </Link>
@@ -48,7 +49,7 @@ export default async function ConversationPage({
         </Link>
       </div>
 
-      <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-4">
+      <ConversationScroll revision={messages.at(-1)?.id ?? 0}>
         {messages.length === 0 && (
           <p className="muted">No messages yet. Say hello.</p>
         )}
@@ -62,7 +63,7 @@ export default async function ConversationPage({
                 className={`flex ${mine ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[75%] rounded-lg px-3 py-2 ${mine ? "bg-indigo-600 text-white" : "bg-gray-100"}`}
+                  className={`max-w-[75%] rounded-lg px-3 py-2 ${mine ? "bg-neutral-900 text-white" : "bg-gray-100"}`}
                 >
                   {m.body && (
                     <p className="whitespace-pre-wrap break-words">{m.body}</p>
@@ -75,7 +76,7 @@ export default async function ConversationPage({
                     />
                   )}
                   <div
-                    className={`mt-1 text-xs ${mine ? "text-indigo-100" : "text-gray-500"}`}
+                    className={`mt-1 text-xs ${mine ? "text-gray-300" : "text-gray-500"}`}
                   >
                     {formatTime(m.created_at)}
                   </div>
@@ -84,9 +85,9 @@ export default async function ConversationPage({
             );
           },
         )}
-      </div>
+      </ConversationScroll>
 
-      <div className="card">
+      <div className="conversation-composer">
         <ActionForm
           action={sendMessageAction}
           submitLabel="Send"

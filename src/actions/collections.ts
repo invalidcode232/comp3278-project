@@ -5,10 +5,10 @@ import { redirect } from "next/navigation";
 import { isMysqlError, pool } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import {
-  addThreadToCollection,
+  addPostToCollection,
   createCollection,
   deleteCollection,
-  removeThreadFromCollection,
+  removePostFromCollection,
   renameCollection,
 } from "@/lib/queries/collections";
 import {
@@ -101,11 +101,11 @@ export async function saveToCollectionAction(
   formData: FormData,
 ): Promise<void> {
   const me = await requireUser();
-  await addThreadToCollection(
+  await addPostToCollection(
     pool,
     me.id,
     id(formData.get("collection_id")),
-    id(formData.get("thread_id")),
+    id(formData.get("post_id")),
   );
   revalidatePath("/", "layout");
 }
@@ -117,11 +117,11 @@ export async function removeFromCollectionAction(
   formData: FormData,
 ): Promise<void> {
   const me = await requireUser();
-  await removeThreadFromCollection(
+  await removePostFromCollection(
     pool,
     me.id,
     id(formData.get("collection_id")),
-    id(formData.get("thread_id")),
+    id(formData.get("post_id")),
   );
   revalidatePath("/", "layout");
 }

@@ -1,6 +1,6 @@
-# COMP3278 Social
+# Threadly
 
-A small social web app: threads grouped by topic, comments, likes, follows, saved collections and direct messages, with image uploads stored in MySQL.
+A small social web app: root posts grouped by topic, nested replies, likes, follows, private collections and direct messages, with image uploads stored in MySQL.
 
 - **Stack:** Next.js 16 (App Router, TypeScript) + MySQL 8, using the `mysql2/promise` driver with a connection pool.
 - **No ORM or query builder.** Every database operation is hand-written, parameterized SQL in [`src/lib/queries/`](src/lib/queries), one file per entity.
@@ -75,15 +75,15 @@ To stop: `docker compose down`. To also delete the data volume: `docker compose 
 
 | Script | Runs | Effect |
 |---|---|---|
-| `npm run db:schema` | `scripts/apply-schema.ts` | Runs `db/schema.sql`: `DROP DATABASE IF EXISTS comp3278_social`, `CREATE DATABASE`, then all 12 tables. **Deletes any existing data in that database.** |
+| `npm run db:schema` | `scripts/apply-schema.ts` | Runs `db/schema.sql`: `DROP DATABASE IF EXISTS comp3278_social`, `CREATE DATABASE`, then all 10 tables. **Deletes any existing data in that database.** |
 | `npm run db:seed` | `scripts/seed.ts` | Inserts the demo data in one transaction. It refuses to run if users already exist. |
-| `npm run db:reset` | both, in order | Fresh database with demo data. Safe to run as often as you like. |
+| `npm run db:reset` | both, in order | Fresh database with demo data. Deletes existing data; use only for a fresh/disposable setup. |
 
 Expected output (ends with):
 
 ```
-Created database comp3278_social with 12 tables: collection_threads, collections, comment_likes, comments, follows, images, messages, sessions, thread_likes, threads, topics, users
-Seeded: { users: 7, topics: 5, threads: 20, comments: 40, thread_likes: 71, comment_likes: 49, follows: 15, collections: 3, collection_threads: 12, messages: 15, images: 8 }
+Created database comp3278_social with 10 tables: collection_posts, collections, follows, images, messages, post_likes, posts, sessions, topics, users
+Seeded: { users: 7, topics: 5, roots: 20, replies: 40, post_likes: 120, follows: 15, collections: 3, collection_posts: 12, messages: 15, images: 8 }
 Images: 12 references stored as 8 rows (duplicates reused by SHA-256).
 ```
 
@@ -117,7 +117,7 @@ Every demo account uses the password **`password123`**.
 | `frank@example.com` | `frank` | His sunset thread reuses Bob's image, which shows deduplication. |
 | `grace@example.com` | `grace` | Spare account for trying **Delete account**. |
 
-The seed contains 7 users, 5 topics, 20 threads, 40 comments, 71 thread likes, 49 comment likes, 15 follows, 3 collections (12 saved threads), 15 DMs across 5 conversations, and 8 images in PNG, JPEG and GIF. Some threads and comments are marked "(edited)". Run `npm run db:reset` at any time to restore this state.
+The seed contains 7 users, 5 topics, 20 roots and 40 replies in one posts table, 120 post likes, 15 follows, 3 collections (12 saved threads), 15 DMs across 5 conversations, and 8 images in PNG, JPEG and GIF. The fixture includes a reply to a reply. Some roots and replies are marked "(edited)". Use `npm run db:reset` only when intentionally discarding all existing data.
 
 ## Running
 
@@ -142,12 +142,12 @@ Other scripts: `npm run typecheck` runs `tsc --noEmit`.
 
 | Feature | Where |
 |---|---|
-| Sign up / log in / log out | `/signup`, `/login`, "Log out" in the header |
-| Feed: all / following | `/` (tabs "All" and "Following") |
+| Sign up / log in / log out | `/signup`, `/login`, "Log out" in the account menu |
+| Feed: all / following | `/` (tabs "For you" and "Following") |
 | Topics and their threads | `/topics` → `/topics/[id]` |
-| Create a thread (text and/or image, one topic) | "New thread" in the header → `/threads/new` |
-| Thread page: like, comment, edit/delete own comments, save to or remove from a collection | `/threads/[id]` |
-| Edit / delete your own thread | "Edit" / "Delete" on your thread cards; editing is at `/threads/[id]/edit` |
+| Create a thread (text and/or image, one topic) | Plus button / inline composer; full-page fallback `/threads/new` |
+| Conversation: like, reply to any live post/reply, ancestor context, private root saves | `/threads/[id]` |
+| Edit / delete your own thread | "Edit" / "Delete" in your post’s overflow menu; editing is at `/threads/[id]/edit` |
 | Profile: bio, avatar, follower/following counts, threads, follow/unfollow | `/u/[handle]` |
 | Edit display name, handle, bio, avatar; delete account | `/settings` |
 | Collections: create, rename, delete, view | `/collections` → `/collections/[id]` |
@@ -175,8 +175,8 @@ Other scripts: `npm run typecheck` runs `tsc --noEmit`.
     ├── lib/
     │   ├── db.ts               # mysql2 pool and driver error classification
     │   ├── queries/            # ALL SQL: one file per entity, named functions
-    │   │   ├── users.ts  sessions.ts  images.ts  topics.ts  threads.ts
-    │   │   └── comments.ts  likes.ts  follows.ts  collections.ts  messages.ts
+    │   │   ├── users.ts  sessions.ts  images.ts  topics.ts  posts.ts
+    │   │   └── likes.ts  follows.ts  collections.ts  messages.ts
     │   ├── auth.ts             # session cookie (httpOnly), getCurrentUser(), requireUser()
     │   ├── image-lifecycle.ts  # serialized reference changes and atomic orphan cleanup
     │   ├── upload.ts           # 10 MiB limit, file type from magic bytes, SHA-256, dedup
@@ -184,7 +184,7 @@ Other scripts: `npm run typecheck` runs `tsc --noEmit`.
     │   ├── validate.ts         # form parsing helpers
     │   └── format.ts
     ├── actions/                # Server Actions: validate input → call queries/*
-    ├── components/             # One component per file: ThreadCard, ThreadList, ActionForm, Avatar…
+    ├── components/             # One component per file: PostCard, PostList, ActionForm, Avatar…
     └── app/                    # pages (App Router) + api/images/[id]/route.ts
 ```
 
@@ -195,8 +195,8 @@ How a request flows: a page (server component) calls `src/lib/queries/*` to read
 - **Sessions.** Login creates a row in `sessions` with a 256-bit random token and an expiry 30 days out, and stores the token in an `httpOnly`, `SameSite=Lax` cookie. Every request looks up the token with `expires_at > UTC_TIMESTAMP()`. Authenticated activity renews the expiry and cookie for 30 days, at most once per 24 hours, through `src/proxy.ts`. An expired session cannot renew. Logging out deletes the row.
 - **Passwords** are hashed with bcrypt (cost 10) via `bcryptjs`.
 - **Images.** The type is detected from the file's first bytes, not trusted from the browser. Both Server Action and proxy body limits allow 12 MB for multipart overhead. Files over 10 MiB are refused, in the browser before upload and again on the server. Images are stored once per SHA-256 and served only after current-reference authorization, with `Cache-Control: private, no-store` and an ETag.
-- **Image access and lifecycle.** Avatars and images referenced by public threads/comments are public. DM-only images require the authenticated sender or recipient. Unknown/inaccessible images both return 404, including conditional requests. Every response uses `private, no-store` because a public image can become private when references change. Previously cached copies from older releases cannot be recalled; this policy governs new responses.
-- **Cleanup.** `withImageTransaction` serializes image/reference mutations using a database-scoped advisory lock, then performs the mutation and deletes unreferenced images in one transaction. Cleanup checks avatars, threads, comments, and messages; it includes replacements and account/thread cascades. Shared images survive until their last reference disappears. All application image-reference writes must use this helper.
+- **Image access and lifecycle.** Avatars and images referenced by live public posts/replies are public. DM-only images require the authenticated sender or recipient. Unknown/inaccessible images both return 404, including conditional requests. Every response uses `private, no-store` because a public image can become private when references change. Previously cached copies from older releases cannot be recalled; this policy governs new responses.
+- **Cleanup.** `withImageTransaction` serializes image/reference mutations using a database-scoped advisory lock, then performs the mutation and deletes unreferenced images in one transaction. Cleanup checks avatars, posts, and messages; it includes replacements and post erasure and account deletion. Shared images survive until their last reference disappears. All application image-reference writes must use this helper.
 - **Time zone.** All `DATETIME` values are stored in UTC. The pool sets `time_zone = '+00:00'` on every connection, and the server formats times in its local time zone.
 
 ## Troubleshooting
@@ -207,7 +207,7 @@ How a request flows: a page (server component) calls `src/lib/queries/*` to read
 
 **`ECONNREFUSED 127.0.0.1:3307` when running `db:reset`.** MySQL isn't up yet. With Docker, wait until `docker compose ps` shows `(healthy)`; the first start takes about 30 seconds. With a local install, check that `DB_PORT` matches your server (`mysql -u root -p -e "SHOW VARIABLES LIKE 'port'"`).
 
-**`Access denied for user 'root'@...`.** `DB_PASSWORD` doesn't match. With Docker, the root password is fixed when the data volume is first created; changing `.env` later has no effect. Run `docker compose down -v` to delete the volume, then `docker compose up -d` again.
+**`Access denied for user 'root'@...`.** `DB_PASSWORD` doesn't match. With Docker, the root password is fixed when the data volume is first created; changing `.env` later has no effect. Use the password used when that volume was created. Only recreate the volume if its data is disposable; back up valued data first.
 
 **Authentication plugin errors** (`ER_NOT_SUPPORTED_AUTH_MODE`, `Client does not support authentication protocol`, `caching_sha2_password could not be loaded`, `Plugin 'mysql_native_password' is not loaded`). MySQL 8 uses `caching_sha2_password` by default, and `mysql2` supports it, so this normally comes from an old account or client.
 - If an old account was created with `mysql_native_password` (MySQL 8.4 disables that plugin by default), switch the account to the current plugin:
@@ -233,7 +233,7 @@ To make it permanent, add `max_allowed_packet=64M` under `[mysqld]` in `my.cnf` 
 
 **`DB_NAME in .env is "…" but db/schema.sql creates "comp3278_social"`.** Set `DB_NAME=comp3278_social`.
 
-**`db:seed failed: The database already has users`.** The seed only fills an empty schema. Use `npm run db:reset`.
+**`db:seed failed: The database already has users`.** The seed only fills an empty schema. Keep existing data, or use `npm run db:reset` only if it is disposable.
 
 **`node: bad option: --env-file` or `SyntaxError` on `scripts/*.ts`.** Your Node is too old. Install Node 22.18+ (24 LTS recommended).
 
@@ -248,10 +248,23 @@ at a shared or production database.
 
 ## Updating an existing database
 
-Fresh installs use `db/schema.sql`. To preserve existing data, apply numbered
-files in `db/migrations/` once, in order, using a MySQL client connected to
-`comp3278_social` (for example `mysql ... comp3278_social < db/migrations/001-self-messages.sql`).
-Do not run `db:reset` as an upgrade: it deletes data. Back up valued data first.
+Fresh installs use `db/schema.sql` directly. For the original baseline, apply
+`001-self-messages.sql` and `002-image-limit.sql` once first. For the previous
+Threadly version those two changes are already installed.
+
+To upgrade threads/comments to unified posts:
+
+1. Stop the app and take a MySQL backup (including data). Verify it restores into
+   a separate database/server before upgrading valued data.
+2. Run `npm run db:migrate`. It applies `003-unified-posts.sql`, verifies the
+   counts of posts, likes and saved links, and only then removes old storage.
+3. Build/start the updated application. Root `/threads/{id}` URLs keep their IDs;
+   old comment IDs are remapped into the shared post ID space.
+
+MySQL DDL is not transactional. If the migration fails partway through, restore
+the backup before retrying; the script refuses an ambiguous partial schema.
+`db:reset` is not an upgrade and deletes your data. Local backups belong outside
+Git; `.local-backups/` is ignored.
 
 Self-messaging is available from Messages and your own profile. A self-message
 is shown once, aligned on the sending side, and has one conversation-list entry.
@@ -269,3 +282,21 @@ Screenshots/traces are local ignored files in `test-results/`.
 
 A test run does not authorize resetting any shared database. See
 [validation evidence](docs/VALIDATION.md) for checked environments and limitations.
+
+## Unified conversations and visual behavior
+
+Roots and replies share `posts`; roots have `parent_id=NULL`. Each reply has a
+permalink at `/threads/{id}`, ancestor context, direct replies, and the same
+edit/like/delete operations. Root topics and parent links are immutable. Private
+collections continue saving roots only. Deleted content becomes an anonymous
+“Deleted post” placeholder, preserving descendants; account deletion erases that
+account's posts while preserving others' replies. These operations release image
+references immediately and remove the deleted posts' likes/saved links.
+
+The interface follows the inspected Threads desktop rail, mobile bottom bar,
+continuous feed, compact actions, relative timestamps and contextual composers.
+Project-specific topics/collections remain functional rather than displaying
+unsupported Threads features. Dialog entrances use the measured 200ms ease-in-out
+fade and 0.95→1 scale. Counter rolling/colour, menu and exit timings are local
+approximations, with reduced-motion support. Messages keep a scrollable history
+above a persistent composer. Clipboard sharing copies the current post URL only.

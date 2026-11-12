@@ -24,10 +24,10 @@ skipped, rather than resolved with invented dates or responsibilities.
 | D03 | Keep database-backed sessions. Use a 30-day inactivity expiry; authenticated activity renews database expiry and cookie lifetime at most once daily. | Preserve the existing authentication model while allowing active users to stay signed in without a write on every request. | Implemented daily-throttled renewal in the request proxy and conditional SQL. Database boundary/concurrency checks and browser cookie renewal checks pass. Preserve logout of the current session and deletion of all sessions when the account is deleted. |
 | D04 | Keep collections private. | Retain owner-only access. | Already enforced in the inspected read and mutation paths. No policy change needed. |
 | D05 | Keep each thread's topic fixed after creation. | Retain the existing editing scope. | Baseline edit operations update text/image only. No policy change needed. |
-| D06 | Keep the current account-deletion cascade, including both sides' DM history. | Retain the simpler deletion model. | Baseline removes the user's sessions, authored threads/comments, likes, follows, owned collections/links, and sent/received messages. Deleting their threads also removes other users' comments/likes and collection links to those threads. D09 adds cleanup of images left unreferenced. |
+| D06 | Keep the current account-deletion cascade, including both sides' DM history. | Retain the simpler deletion model. | Original baseline cascaded authored content and its descendants. Superseded for posts by the later unified-conversation decision below: erase owned posts while preserving descendants. Sessions, likes, follows, collections and both DM directions still cascade. D09 governs unreferenced-image cleanup. |
 | D07 | Any signed-in user may message any user, including themselves. Self-messages appear once, on the sending side only. | Retain unrestricted DMs while adding self-messaging. | Self-messaging is implemented in schema/actions/pages, with received-branch exclusion in conversation queries. A non-destructive migration removes the old constraint. Database checks verify single entries and message ordering. No read receipts or message-request workflow is added. |
 | D08 | Require participant access to DM-only images. Images also used publicly remain public. Caching must respect permissions. | Protect private attachments without hiding images that have a public reference. | Implemented reference/participant authorization before conditional response handling, with private no-store caching. Database visibility and browser/HTTP access checks pass. An image's content hash or deduplication does not itself grant access. |
-| D09 | Delete images immediately when their last reference is removed. | Reclaim unused image data while preserving shared images. | Implemented cleanup of all four reference types within serialized image transactions, including replacement and deletion cascades. Database checks cover sharing, rollback, concurrent deduplication, and final-reference deletion. |
+| D09 | Delete images immediately when their last reference is removed. | Reclaim unused image data while preserving shared images. | Implemented cleanup of all reference types (now avatars, unified posts, and messages) within serialized image transactions, including replacement and deletion cascades. Database checks cover sharing, rollback, concurrent deduplication, and final-reference deletion. |
 | D10 | Increase the image upload limit to 10 MiB; keep other limits and supported formats unchanged. | Allow larger image uploads without changing text/profile limits. | Implemented a 10 MiB cap in server/browser validation and the schema, with a preserving migration for existing databases. Server Action and proxy request allowances are 12 MB for multipart overhead. |
 | D11 | Keep both local MySQL and Docker MySQL setup; run locally. | Preserve both existing setup options without adding hosted deployment. | Both paths remain documented. A fresh checkout was installed, seeded, built, and browser-tested against disposable Docker MySQL 8.4.13 over local TCP; a separate native OS MySQL installation was not tested. Database schema/reset commands recreate the database and must not be run against data that must be preserved. |
 
@@ -90,12 +90,9 @@ completion from approval alone.
   changes. Keep Threadly's existing feature scope rather than adding unsupported
   Threads-only controls. Logged-in Safari Personal is the reference.
 - Unify root posts and replies into one entity: roots have a NULL parent and
-  replies reference another post. This model/migration is agreed but **not yet
-  implemented**; the existing threads/comments tables remain in use.
+  replies reference another post. Implemented in `posts`, `post_likes` and the preserving migration; the separate threads/comments tables are removed.
 - When deleting a post, keep replies connected under a “Deleted post” placeholder.
-  Clear deleted content and its image reference. This is agreed but **not yet
-  implemented**. Account-deletion handling and root-only collection semantics
-  need to be reconciled with the new model before migration.
+  Clear deleted content, author identity and image reference. Implemented for post deletion and owned posts during account deletion, preserving others’ replies. Collections retain their existing root-only scope; saved links and likes on deleted posts are removed. This supersedes the post/comment subtree cascade in D06; both DM directions still cascade.
 - Counter feedback is implemented independently through shared UI components:
   200ms directional count movement and 180ms like colour/fill transitions,
   optimistic like updates, failure rollback, and reduced-motion support.
@@ -103,4 +100,11 @@ completion from approval alone.
   Threads timings. Profile follow counts and reply totals reuse the counter.
 - Reference inspection measured new-post and expanded-reply dialogs at 620px
   wide with 16px panel corners, a 70%-black backdrop, and 200ms ease-in-out
-  opacity 0→1 / scale 0.95→1 entrances. These dialog changes remain pending.
+  opacity 0→1 / scale 0.95→1 entrances. Implemented for new-post and expanded-reply dialogs. Exit/menu motion is an approximation, not claimed exact parity.
+
+
+The unified model, responsive visual refactor, attachment previews, persistent DM
+composer, accessible modal focus handling and motion are implemented. Reference
+matching adapts the existing project scope: discovery shows seeded topics, saves
+are private/root-only, and there are no nonfunctional repost/activity controls.
+Validation and the local migration outcome are recorded in `docs/VALIDATION.md`.

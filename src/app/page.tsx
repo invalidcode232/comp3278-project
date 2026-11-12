@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
-import { listAllThreads, listFollowingThreads } from "@/lib/queries/threads";
-import { ThreadList } from "@/components/ThreadList";
+import { listAllPosts, listFollowingPosts } from "@/lib/queries/posts";
+import { ComposerDialog } from "@/components/PostComposer";
+import { listTopics } from "@/lib/queries/topics";
+import { Avatar } from "@/components/Avatar";
+import { PostList } from "@/components/PostList";
 
 /** Read the selected all/following feed for the current viewer and render thread cards. */
 export default async function FeedPage({
@@ -16,25 +19,36 @@ export default async function FeedPage({
 }) {
   const { tab } = await searchParams;
   const me = await getCurrentUser();
+  const topics = await listTopics(pool);
   const following = tab === "following";
 
   const tabClass =
     /** Select active-tab styling without changing the requested feed. */
-    (active: boolean) =>
-      active
-        ? "border-b-2 border-indigo-600 pb-1 font-medium"
-        : "pb-1 text-gray-500 hover:text-gray-800";
+    (active: boolean) => (active ? "feed-tab active" : "feed-tab");
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-6">
+    <div>
+      <header className="page-heading">
+        <h1>Home</h1>
+      </header>
+      <div className="feed-tabs">
         <Link href="/" className={tabClass(!following)}>
-          All
+          For you
         </Link>
         <Link href="/?tab=following" className={tabClass(following)}>
           Following
         </Link>
       </div>
+      {me && (
+        <div className="feed-composer">
+          <Avatar
+            imageId={me.avatar_image_id}
+            name={me.display_name}
+            size={36}
+          />
+          <ComposerDialog topics={topics} inline />
+        </div>
+      )}
       {following && !me ? (
         <p className="muted">
           <Link href="/login" className="link">
@@ -43,11 +57,11 @@ export default async function FeedPage({
           to see threads from people you follow.
         </p>
       ) : (
-        <ThreadList
+        <PostList
           threads={
             following && me
-              ? await listFollowingThreads(pool, me.id)
-              : await listAllThreads(pool, me?.id ?? null)
+              ? await listFollowingPosts(pool, me.id)
+              : await listAllPosts(pool, me?.id ?? null)
           }
           viewer={me}
           empty={

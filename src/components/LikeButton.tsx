@@ -4,15 +4,18 @@ import { useOptimistic, useRef, useState, useTransition } from "react";
 import { AnimatedCount } from "./AnimatedCount";
 
 /** Shared optimistic like control for posts and replies; failed actions roll back to server props. */
-export function LikeButton({ liked, count, action, field, id }: {
+export function LikeButton({
+  liked,
+  count,
+  action,
+  id,
+}: {
   /** Whether the authenticated viewer currently likes this item. */
   liked: boolean;
   /** Current count supplied by the server query. */
   count: number;
   /** Authorized server action that toggles the relationship and revalidates the page. */
   action: (data: FormData) => Promise<void>;
-  /** Existing server action's identifier field; removed when the entities are unified. */
-  field: "thread_id" | "comment_id";
   /** Stable target record identifier. */
   id: number;
 }) {
@@ -38,7 +41,8 @@ export function LikeButton({ liked, count, action, field, id }: {
       async () => {
         toggle(!optimistic.liked);
         const data = new FormData();
-        data.set(field, String(id));
+        data.set("post_id", String(id));
+        data.set("liked", String(!optimistic.liked));
         try {
           await action(data);
         } catch {
@@ -61,12 +65,22 @@ export function LikeButton({ liked, count, action, field, id }: {
         disabled={pending}
         onClick={submit}
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="like-heart" width="20" height="20">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="like-heart"
+          width="20"
+          height="20"
+        >
           <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
         </svg>
         <AnimatedCount value={optimistic.count} />
       </button>
-      {error && <span role="alert" className="text-xs text-red-700">Couldn’t save like. Try again.</span>}
+      {error && (
+        <span role="alert" className="text-xs text-red-700">
+          Couldn’t save like. Try again.
+        </span>
+      )}
     </span>
   );
 }

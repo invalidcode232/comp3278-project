@@ -10,8 +10,8 @@ export function PostImage({
   return (
     <img
       src={imageUrl(imageId)}
-      alt=""
-      className="mt-2 max-h-96 rounded-md border border-gray-200"
+      alt="Post attachment"
+      className="mt-2 max-h-[520px] max-w-full rounded-xl border border-gray-200"
     />
   );
 }

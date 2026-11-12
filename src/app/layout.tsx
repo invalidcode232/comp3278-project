@@ -1,91 +1,67 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { logoutAction } from "@/actions/auth";
 import { getCurrentUser } from "@/lib/auth";
-import { Avatar } from "@/components/Avatar";
+import { pool } from "@/lib/db";
+import { listTopics } from "@/lib/queries/topics";
+import { Navigation } from "@/components/Navigation";
+import { ComposerDialog } from "@/components/PostComposer";
 import "./globals.css";
 
-// Every page depends on the logged-in user and live data, so never prerender.
-
-/** Force request-time rendering because pages depend on sessions and current data. */
+/** Session-dependent pages are rendered at request time. */
 export const dynamic = "force-dynamic";
-
-/** Application title and description exposed in document metadata. */
+/** Browser title and product description. */
 export const metadata: Metadata = {
-  title: "COMP3278 Social",
-  description: "A small social app built on hand-written MySQL.",
+  title: "Threadly",
+  description: "Small conversations. Real connections.",
 };
-
-/** Render navigation for the current session and the page content; authentication is still enforced in protected actions. */
+/** Shared desktop rail/mobile navigation, centered content column, and topic discovery panel. */
 export default async function RootLayout({
   children,
 }: {
-  /** Nested content rendered inside this component. */
+  /** Route content. */
   children: ReactNode;
 }) {
-  const me = await getCurrentUser();
+  const [me, topics] = await Promise.all([getCurrentUser(), listTopics(pool)]);
   return (
     <html lang="en">
-      <body className="min-h-screen bg-gray-50 text-gray-900">
-        <header className="border-b border-gray-200 bg-white">
-          <nav className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-sm">
-            <Link href="/" className="font-semibold text-indigo-700">
-              COMP3278 Social
-            </Link>
-            <Link href="/" className="hover:underline">
-              Feed
-            </Link>
-            <Link href="/topics" className="hover:underline">
-              Topics
-            </Link>
-            {me && (
-              <>
-                <Link href="/collections" className="hover:underline">
-                  Collections
-                </Link>
-                <Link href="/messages" className="hover:underline">
-                  Messages
-                </Link>
-              </>
+      <body>
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
+        <Navigation
+          handle={me?.handle ?? null}
+          composer={me ? <ComposerDialog topics={topics} /> : null}
+        />
+        <div className="app-shell">
+          <main id="main-content" className="content-column">
+            {children}
+          </main>
+          <aside className="discovery-panel" aria-label="Discover">
+            <h2>Find your conversations</h2>
+            <p className="muted">Explore what’s happening around campus.</p>
+            <div className="discovery-topics">
+              {topics.map(
+                /** Seeded topics are the app's discovery mechanism. */
+                (topic) => (
+                  <Link href={`/topics/${topic.id}`} key={topic.id}>
+                    <strong>{topic.name}</strong>
+                    <span>{topic.description}</span>
+                  </Link>
+                ),
+              )}
+            </div>
+            {!me && (
+              <Link href="/signup" className="btn">
+                Join Threadly
+              </Link>
             )}
-            <span className="flex-1" />
-            {me ? (
-              <>
-                <Link href="/threads/new" className="btn">
-                  New thread
-                </Link>
-                <Link
-                  href={`/u/${me.handle}`}
-                  className="flex items-center gap-2 hover:underline"
-                >
-                  <Avatar
-                    imageId={me.avatar_image_id}
-                    name={me.display_name}
-                    size={28}
-                  />
-                  @{me.handle}
-                </Link>
-                <Link href="/settings" className="hover:underline">
-                  Settings
-                </Link>
-                <form action={logoutAction}>
-                  <button className="hover:underline">Log out</button>
-                </form>
-              </>
-            ) : (
-              <>
-                <Link href="/login" className="hover:underline">
-                  Log in
-                </Link>
-                <Link href="/signup" className="btn">
-                  Sign up
-                </Link>
-              </>
-            )}
-          </nav>
-        </header>
-        <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
+            <footer className="muted">
+              Threadly · COMP3278
+              <br />A place for your conversations.
+            </footer>
+          </aside>
+        </div>
       </body>
     </html>
   );

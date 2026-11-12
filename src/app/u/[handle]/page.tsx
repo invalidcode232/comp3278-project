@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 import { followAction, unfollowAction } from "@/actions/follows";
 import { AnimatedCount } from "@/components/AnimatedCount";
 import { Avatar } from "@/components/Avatar";
-import { ThreadList } from "@/components/ThreadList";
+import { PostList } from "@/components/PostList";
 import { getCurrentUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { formatTime } from "@/lib/format";
 import { getFollowCounts, isFollowing } from "@/lib/queries/follows";
-import { listUserThreads } from "@/lib/queries/threads";
+import { listUserPosts } from "@/lib/queries/posts";
 import { getUserByHandle } from "@/lib/queries/users";
 
 /** Render a public profile, follow counts, threads, and viewer-specific controls. */
@@ -31,7 +31,7 @@ export default async function ProfilePage({
     me && me.id !== user.id
       ? isFollowing(pool, me.id, user.id)
       : Promise.resolve(false),
-    listUserThreads(pool, me?.id ?? null, user.id),
+    listUserPosts(pool, me?.id ?? null, user.id),
   ]);
   const isMe = me?.id === user.id;
 
@@ -50,9 +50,14 @@ export default async function ProfilePage({
           </p>
           {user.bio && <p className="whitespace-pre-wrap">{user.bio}</p>}
           <p className="text-sm">
-            <strong><AnimatedCount value={counts.followers} /></strong>{" "}
+            <strong>
+              <AnimatedCount value={counts.followers} />
+            </strong>{" "}
             {counts.followers === 1 ? "follower" : "followers"} ·{" "}
-            <strong><AnimatedCount value={counts.following} /></strong> following
+            <strong>
+              <AnimatedCount value={counts.following} />
+            </strong>{" "}
+            following
           </p>
         </div>
         <div className="flex gap-2">
@@ -84,7 +89,7 @@ export default async function ProfilePage({
 
       <section className="space-y-3">
         <h2 className="font-semibold">Threads by @{user.handle}</h2>
-        <ThreadList threads={threads} viewer={me} empty="No threads yet." />
+        <PostList threads={threads} viewer={me} empty="No threads yet." />
       </section>
     </div>
   );

@@ -17,7 +17,12 @@ export default async function CollectionsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Your collections</h1>
+      <header className="page-heading">
+        <h1>Your collections</h1>
+      </header>
+      <p className="muted px-5">
+        Private · Only you can see these collections.
+      </p>
 
       <section className="card">
         <h2 className="mb-2 text-sm font-semibold">New collection</h2>
@@ -32,6 +37,7 @@ export default async function CollectionsPage() {
             required
             maxLength={50}
             placeholder="e.g. Exam prep"
+            aria-label="Collection name"
             className="input w-60"
           />
         </ActionForm>
@@ -54,34 +60,37 @@ export default async function CollectionsPage() {
                   >
                     {c.name}
                   </Link>
-                  <span className="muted">{c.thread_count} saved</span>
+                  <span className="muted">{c.post_count} saved</span>
                 </div>
-                <div className="flex flex-wrap items-start gap-2">
-                  <ActionForm
-                    action={renameCollectionAction}
-                    submitLabel="Rename"
-                    buttonClassName="btn-secondary"
-                    className="flex flex-wrap items-center gap-2"
-                  >
-                    <input type="hidden" name="collection_id" value={c.id} />
-                    <input
-                      name="name"
-                      required
-                      maxLength={50}
-                      defaultValue={c.name}
-                      className="input w-60"
-                      aria-label="New name"
-                    />
-                  </ActionForm>
-                  <form action={deleteCollectionAction}>
-                    <input type="hidden" name="collection_id" value={c.id} />
-                    <ConfirmButton
-                      message={`Delete the collection “${c.name}”? The threads themselves are not deleted.`}
+                <details className="collection-manage">
+                  <summary>Manage collection</summary>
+                  <div className="mt-3 flex flex-wrap items-start gap-2">
+                    <ActionForm
+                      action={renameCollectionAction}
+                      submitLabel="Rename"
+                      buttonClassName="btn-secondary"
+                      className="flex flex-wrap items-center gap-2"
                     >
-                      Delete
-                    </ConfirmButton>
-                  </form>
-                </div>
+                      <input type="hidden" name="collection_id" value={c.id} />
+                      <input
+                        name="name"
+                        required
+                        maxLength={50}
+                        defaultValue={c.name}
+                        className="input w-60"
+                        aria-label="New name"
+                      />
+                    </ActionForm>
+                    <form action={deleteCollectionAction}>
+                      <input type="hidden" name="collection_id" value={c.id} />
+                      <ConfirmButton
+                        message={`Delete the collection “${c.name}”? The threads themselves are not deleted.`}
+                      >
+                        Delete
+                      </ConfirmButton>
+                    </form>
+                  </div>
+                </details>
               </li>
             ),
           )}

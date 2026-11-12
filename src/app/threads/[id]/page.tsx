@@ -4,216 +4,126 @@ import {
   removeFromCollectionAction,
   saveToCollectionAction,
 } from "@/actions/collections";
-import {
-  createCommentAction,
-  deleteCommentAction,
-  updateCommentAction,
-} from "@/actions/comments";
-import { toggleCommentLikeAction } from "@/actions/likes";
-import { LikeButton } from "@/components/LikeButton";
-import { AnimatedCount } from "@/components/AnimatedCount";
-import { ActionForm } from "@/components/ActionForm";
-import { Avatar } from "@/components/Avatar";
-import { ContentFields } from "@/components/ContentFields";
-import { PostImage } from "@/components/PostImage";
-import { Stamp } from "@/components/Stamp";
-import { ConfirmButton } from "@/components/ConfirmButton";
-import { ThreadCard } from "@/components/ThreadCard";
+import { PostCard } from "@/components/PostCard";
+import { PostComposer, ComposerDialog } from "@/components/PostComposer";
+import { Icon } from "@/components/Icon";
 import { getCurrentUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
-import { listCollectionsForThread } from "@/lib/queries/collections";
-import { listComments } from "@/lib/queries/comments";
-import { getThread } from "@/lib/queries/threads";
+import { listCollectionsForPost } from "@/lib/queries/collections";
+import { getPost, listReplies, listAncestors } from "@/lib/queries/posts";
 import { parseId } from "@/lib/validate";
 
-/** Render one thread, comments, and viewer-owned collection controls; return not-found for an invalid thread. */
+/** A conversation focuses on one root or reply, with ancestor context and direct children. */
 export default async function ThreadPage({
   params,
-  searchParams,
 }: {
-  /** Asynchronous route parameters supplied by Next.js. */
-  params: Promise<{
-    /** Stable identifier used to reference this record. */
-    id: string;
-  }>;
-
-  /** Asynchronous URL query parameters supplied by Next.js. */
-  searchParams: Promise<{
-    /** Optional comment ID selecting the author’s inline edit form. */
-    editComment?: string;
-  }>;
+  /** Stable route ID; old root URLs survive the migration. */
+  params: Promise<{ /** Root or reply ID. */ id: string }>;
 }) {
-  const threadId = parseId((await params).id);
-  if (!threadId) notFound();
-  const editingId = parseId((await searchParams).editComment ?? "");
+  const postId = parseId((await params).id);
+  if (!postId) notFound();
   const me = await getCurrentUser();
-  const viewerId = me?.id ?? null;
-
-  const [thread, comments, collections] = await Promise.all([
-    getThread(pool, viewerId, threadId),
-    listComments(pool, viewerId, threadId),
-    me ? listCollectionsForThread(pool, me.id, threadId) : Promise.resolve([]),
+  const post = await getPost(pool, me?.id ?? null, postId);
+  if (!post) notFound();
+  const [ancestors, replies, collections] = await Promise.all([
+    listAncestors(pool, me?.id ?? null, post.id),
+    listReplies(pool, me?.id ?? null, post.id),
+    me && !post.parent_id && !post.deleted_at
+      ? listCollectionsForPost(pool, me.id, post.id)
+      : Promise.resolve([]),
   ]);
-  if (!thread) notFound();
-
   return (
-    <div className="space-y-6">
-      <ThreadCard thread={thread} viewer={me} />
-
-      {me && (
-        <section className="card">
-          <h2 className="mb-2 text-sm font-semibold">Collections</h2>
-          {collections.length === 0 ? (
-            <p className="muted">
-              You have no collections.{" "}
-              <Link href="/collections" className="link">
-                Create one
-              </Link>{" "}
-              to save threads.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {collections.map(
-                /** Offer save/remove actions only for the viewer’s own collections. */
-                (c) => (
-                  <form
-                    key={c.id}
-                    action={
-                      c.has_thread
-                        ? removeFromCollectionAction
-                        : saveToCollectionAction
-                    }
-                  >
-                    <input type="hidden" name="collection_id" value={c.id} />
-                    <input type="hidden" name="thread_id" value={thread.id} />
-                    <button className={c.has_thread ? "btn" : "btn-secondary"}>
-                      {c.has_thread
-                        ? `✓ In “${c.name}” (remove)`
-                        : `+ Save to “${c.name}”`}
-                    </button>
-                  </form>
-                ),
-              )}
+    <>
+      <header className="page-heading">
+        <Link
+          href={post.parent_id ? `/threads/${post.parent_id}` : "/"}
+          className="icon-button"
+          aria-label="Back"
+        >
+          <Icon name="back" />
+        </Link>
+        <h1>Thread</h1>
+        <span />
+      </header>
+      <section className="feed-surface">
+        {ancestors.map(
+          /** Keep the parent chain readable without recursively narrowing the content. */
+          (parent) => (
+            <div className="ancestor" key={parent.id}>
+              <PostCard thread={parent} viewer={me} />
             </div>
-          )}
-        </section>
-      )}
-
-      <section className="space-y-3">
-        <h2 className="font-semibold">
-          Comments (<AnimatedCount value={comments.length} />)
-        </h2>
-        {comments.map(
-          /** Render a comment or its author-only editor, retaining like and delete controls. */
-          (c) => {
-            const mine = me?.id === c.author_id;
-            const editing = mine && editingId === c.id;
-            return (
-              <div key={c.id} id={`c${c.id}`} className="card">
-                <div className="flex items-center gap-2">
-                  <Avatar
-                    imageId={c.avatar_image_id}
-                    name={c.display_name}
-                    size={32}
-                  />
-                  <Link
-                    href={`/u/${c.handle}`}
-                    className="text-sm font-medium hover:underline"
-                  >
-                    {c.display_name}
-                  </Link>
-                  <span className="muted">@{c.handle} ·</span>
-                  <Stamp at={c.created_at} edited={c.edited} />
-                </div>
-                {editing ? (
-                  <div className="mt-3">
-                    <ActionForm
-                      action={updateCommentAction}
-                      submitLabel="Save comment"
-                    >
-                      <input type="hidden" name="comment_id" value={c.id} />
-                      <ContentFields
-                        defaultBody={c.body}
-                        currentImageId={c.image_id}
-                        rows={3}
-                      />
-                    </ActionForm>
-                    <Link
-                      href={`/threads/${thread.id}#c${c.id}`}
-                      className="link mt-2 inline-block text-sm"
-                    >
-                      Cancel
-                    </Link>
-                  </div>
-                ) : (
-                  <>
-                    {c.body && (
-                      <p className="mt-2 whitespace-pre-wrap break-words">
-                        {c.body}
-                      </p>
-                    )}
-                    {c.image_id && <PostImage imageId={c.image_id} />}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {me ? (
-                        <LikeButton
-                          liked={Boolean(c.liked_by_me)}
-                          count={c.like_count}
-                          action={toggleCommentLikeAction}
-                          field="comment_id"
-                          id={c.id}
-                        />
-                      ) : (
-                        <span className="muted">♡ {c.like_count}</span>
-                      )}
-                      {mine && (
-                        <>
-                          <Link
-                            href={`/threads/${thread.id}?editComment=${c.id}#c${c.id}`}
-                            className="btn-secondary"
-                          >
-                            Edit
-                          </Link>
-                          <form action={deleteCommentAction}>
-                            <input
-                              type="hidden"
-                              name="comment_id"
-                              value={c.id}
-                            />
-                            <ConfirmButton message="Delete this comment?">
-                              Delete
-                            </ConfirmButton>
-                          </form>
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          },
+          ),
         )}
-
-        {me ? (
-          <div className="card">
-            <h3 className="mb-2 text-sm font-semibold">Add a comment</h3>
-            <ActionForm
-              action={createCommentAction}
-              submitLabel="Comment"
-              resetOnSuccess
-            >
-              <input type="hidden" name="thread_id" value={thread.id} />
-              <ContentFields rows={3} placeholder="Write a comment…" />
-            </ActionForm>
+        <PostCard
+          thread={post}
+          viewer={me}
+          extra={
+            me && !post.parent_id && !post.deleted_at ? (
+              <details className="action-menu save-menu">
+                <summary aria-label="Save to collection">
+                  <Icon name="bookmark" />
+                </summary>
+                <div className="menu-panel">
+                  <p className="muted">Private collections</p>
+                  {collections.map(
+                    /** Each save mutation is scoped to the signed-in collection owner. */
+                    (c) => (
+                      <form
+                        key={c.id}
+                        action={
+                          c.has_post
+                            ? removeFromCollectionAction
+                            : saveToCollectionAction
+                        }
+                      >
+                        <input
+                          type="hidden"
+                          name="collection_id"
+                          value={c.id}
+                        />
+                        <input type="hidden" name="post_id" value={post.id} />
+                        <button>
+                          {c.has_post
+                            ? `✓ In “${c.name}” (remove)`
+                            : `+ Save to “${c.name}”`}
+                        </button>
+                      </form>
+                    ),
+                  )}
+                  <Link href="/collections">Manage collections</Link>
+                </div>
+              </details>
+            ) : undefined
+          }
+        />
+        <div className="section-heading">
+          <h2>Replies</h2>
+          {me && !post.deleted_at && <ComposerDialog parent={post} />}
+        </div>
+        {me && !post.deleted_at ? (
+          <div className="inline-reply">
+            <PostComposer parent={post} />
           </div>
         ) : (
-          <p className="muted">
-            <Link href="/login" className="link">
-              Log in
-            </Link>{" "}
-            to comment.
-          </p>
+          !me && (
+            <p className="empty-state">
+              <Link href="/login" className="link">
+                Log in
+              </Link>{" "}
+              to reply.
+            </p>
+          )
+        )}
+        {replies.map(
+          /** Render each child once; its permalink exposes the next conversation level. */
+          (reply) => (
+            <PostCard key={reply.id} thread={reply} viewer={me} />
+          ),
+        )}
+        {!replies.length && (
+          <p className="empty-state">No replies yet. Start the conversation.</p>
         )}
       </section>
-    </div>
+    </>
   );
 }

@@ -88,98 +88,48 @@ CREATE TABLE topics (
   CONSTRAINT chk_topics_name CHECK (CHAR_LENGTH(TRIM(name)) > 0)
 ) ENGINE=InnoDB;
 
--- -----------------------------------------------------------------------------
--- threads: belongs to exactly one author and exactly one topic.
---  author_id  CASCADE  -> deleting a user deletes their threads.
---  topic_id   RESTRICT -> a topic that still has threads cannot be deleted
---                         (threads must always have a topic: NOT NULL).
---  image_id   RESTRICT -> referenced images are shared (dedup) and protected.
---                         The application deletes only unreferenced images.
---                         SET NULL is not an option: it could break the
---                         body-or-image CHECK, and MySQL rejects it anyway
---                         (error 3823: column used in a CHECK cannot have a
---                         SET NULL referential action). Same for comments/messages.
--- chk_threads_content: text that is only spaces does not count as content.
--- chk_threads_edit_time: updated_at can never be earlier than created_at.
--- (topic_id, created_at) serves "threads in topic X, newest first".
--- -----------------------------------------------------------------------------
-CREATE TABLE threads (
-  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  author_id   CHAR(36) CHARACTER SET ascii NOT NULL,
-  topic_id    INT UNSIGNED NOT NULL,
-  body        TEXT NULL,
-  image_id    BIGINT UNSIGNED NULL,
-  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+-- posts: root posts and replies share an entity. Roots have a fixed topic and
+-- NULL parent; replies have a parent and inherit topic through their ancestors.
+-- Author, content, and image are erased on deletion; the tombstone preserves
+-- descendants. Self-FK RESTRICT prevents accidental subtree loss. Application
+-- inserts only beneath an existing parent and never changes parent_id/topic_id.
+CREATE TABLE posts (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, -- Stable post/reply key.
+  parent_id BIGINT UNSIGNED NULL, -- NULL root, otherwise the immediate parent.
+  author_id CHAR(36) CHARACTER SET ascii NULL, -- NULL only on deleted posts.
+  topic_id INT UNSIGNED NULL, -- Present only on roots, including deleted roots.
+  body TEXT NULL, -- Plain text; image-only active posts are allowed.
+  image_id BIGINT UNSIGNED NULL, -- Shared public attachment while active.
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL, -- Tombstone timestamp; deletion is irreversible.
   PRIMARY KEY (id),
-  KEY idx_threads_author_created (author_id, created_at),
-  KEY idx_threads_topic_created (topic_id, created_at),
-  KEY idx_threads_image (image_id),
-  KEY idx_threads_created (created_at),
-  CONSTRAINT fk_threads_author FOREIGN KEY (author_id)
-    REFERENCES users (id) ON DELETE CASCADE,
-  CONSTRAINT fk_threads_topic FOREIGN KEY (topic_id)
-    REFERENCES topics (id) ON DELETE RESTRICT,
-  CONSTRAINT fk_threads_image FOREIGN KEY (image_id)
-    REFERENCES images (id) ON DELETE RESTRICT,
-  CONSTRAINT chk_threads_content
-    CHECK ((body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR image_id IS NOT NULL),
-  CONSTRAINT chk_threads_edit_time CHECK (updated_at >= created_at)
+  KEY idx_posts_parent_created (parent_id, created_at, id),
+  KEY idx_posts_author_created (author_id, created_at),
+  KEY idx_posts_topic_created (topic_id, created_at),
+  KEY idx_posts_image (image_id),
+  CONSTRAINT fk_posts_parent FOREIGN KEY (parent_id) REFERENCES posts(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_posts_author FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_posts_topic FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_posts_image FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE RESTRICT,
+  CONSTRAINT chk_posts_topic CHECK (
+    (parent_id IS NULL AND topic_id IS NOT NULL) OR
+    (parent_id IS NOT NULL AND topic_id IS NULL)),
+  CONSTRAINT chk_posts_content CHECK (
+    (deleted_at IS NULL AND author_id IS NOT NULL AND
+      ((body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR image_id IS NOT NULL)) OR
+    (deleted_at IS NOT NULL AND author_id IS NULL AND body IS NULL AND image_id IS NULL)),
+  CONSTRAINT chk_posts_time CHECK (updated_at >= created_at)
 ) ENGINE=InnoDB;
 
--- -----------------------------------------------------------------------------
--- comments: CASCADE from the thread (a deleted thread takes its comments) and
--- from the author (a deleted user takes their comments).
--- -----------------------------------------------------------------------------
-CREATE TABLE comments (
-  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  thread_id   BIGINT UNSIGNED NOT NULL,
-  author_id   CHAR(36) CHARACTER SET ascii NOT NULL,
-  body        TEXT NULL,
-  image_id    BIGINT UNSIGNED NULL,
-  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_comments_thread_created (thread_id, created_at),
-  KEY idx_comments_author (author_id),
-  KEY idx_comments_image (image_id),
-  CONSTRAINT fk_comments_thread FOREIGN KEY (thread_id)
-    REFERENCES threads (id) ON DELETE CASCADE,
-  CONSTRAINT fk_comments_author FOREIGN KEY (author_id)
-    REFERENCES users (id) ON DELETE CASCADE,
-  CONSTRAINT fk_comments_image FOREIGN KEY (image_id)
-    REFERENCES images (id) ON DELETE RESTRICT,
-  CONSTRAINT chk_comments_content
-    CHECK ((body IS NOT NULL AND CHAR_LENGTH(TRIM(body)) > 0) OR image_id IS NOT NULL),
-  CONSTRAINT chk_comments_edit_time CHECK (updated_at >= created_at)
-) ENGINE=InnoDB;
-
--- -----------------------------------------------------------------------------
--- Likes: M–N junction tables. The composite PK makes "like twice" impossible,
--- which is what lets the toggle use INSERT IGNORE. Both sides CASCADE: a like
--- disappears with either the user or the liked row.
--- The second index (post id first) serves COUNT(*) per thread/comment.
--- -----------------------------------------------------------------------------
-CREATE TABLE thread_likes (
-  user_id    CHAR(36) CHARACTER SET ascii NOT NULL,
-  thread_id  BIGINT UNSIGNED NOT NULL,
-  PRIMARY KEY (user_id, thread_id),
-  KEY idx_thread_likes_thread (thread_id),
-  CONSTRAINT fk_thread_likes_user FOREIGN KEY (user_id)
-    REFERENCES users (id) ON DELETE CASCADE,
-  CONSTRAINT fk_thread_likes_thread FOREIGN KEY (thread_id)
-    REFERENCES threads (id) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE comment_likes (
-  user_id     CHAR(36) CHARACTER SET ascii NOT NULL,
-  comment_id  BIGINT UNSIGNED NOT NULL,
-  PRIMARY KEY (user_id, comment_id),
-  KEY idx_comment_likes_comment (comment_id),
-  CONSTRAINT fk_comment_likes_user FOREIGN KEY (user_id)
-    REFERENCES users (id) ON DELETE CASCADE,
-  CONSTRAINT fk_comment_likes_comment FOREIGN KEY (comment_id)
-    REFERENCES comments (id) ON DELETE CASCADE
+-- One like per user/post, irrespective of whether the target is a root or reply.
+CREATE TABLE post_likes (
+  user_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  post_id BIGINT UNSIGNED NOT NULL,
+  PRIMARY KEY (user_id, post_id),
+  KEY idx_post_likes_post (post_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------
@@ -201,7 +151,7 @@ CREATE TABLE follows (
 -- -----------------------------------------------------------------------------
 -- collections: a user's named folders of saved threads. UNIQUE(owner_id, name)
 -- stops duplicate names per user (and doubles as the owner_id FK index).
--- collection_threads: M–N between collections and threads. CASCADE on both:
+-- collection_posts: M–N between collections and threads. CASCADE on both:
 -- deleting a collection empties it; deleting a thread removes it from every
 -- collection that saved it.
 -- -----------------------------------------------------------------------------
@@ -217,16 +167,16 @@ CREATE TABLE collections (
   CONSTRAINT chk_collections_name CHECK (CHAR_LENGTH(TRIM(name)) > 0)
 ) ENGINE=InnoDB;
 
-CREATE TABLE collection_threads (
+CREATE TABLE collection_posts (
   collection_id  BIGINT UNSIGNED NOT NULL,
-  thread_id      BIGINT UNSIGNED NOT NULL,
+  post_id      BIGINT UNSIGNED NOT NULL,
   saved_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (collection_id, thread_id),
-  KEY idx_collection_threads_thread (thread_id),
-  CONSTRAINT fk_ct_collection FOREIGN KEY (collection_id)
+  PRIMARY KEY (collection_id, post_id),
+  KEY idx_collection_posts_thread (post_id),
+  CONSTRAINT fk_cp_collection FOREIGN KEY (collection_id)
     REFERENCES collections (id) ON DELETE CASCADE,
-  CONSTRAINT fk_ct_thread FOREIGN KEY (thread_id)
-    REFERENCES threads (id) ON DELETE CASCADE
+  CONSTRAINT fk_cp_post FOREIGN KEY (post_id)
+    REFERENCES posts (id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------

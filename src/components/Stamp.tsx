@@ -11,10 +11,26 @@ export function Stamp({
   /** Whether the modification timestamp is later than creation. */
   edited?: number | boolean;
 }) {
+  const seconds = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(at).getTime()) / 1000),
+  );
+  const relative =
+    seconds < 60
+      ? "now"
+      : seconds < 3600
+        ? `${Math.floor(seconds / 60)}m`
+        : seconds < 86400
+          ? `${Math.floor(seconds / 3600)}h`
+          : `${Math.floor(seconds / 86400)}d`;
   return (
-    <span className="muted">
-      {formatTime(at)}
-      {edited ? " (edited)" : null}
-    </span>
+    <time
+      dateTime={new Date(at).toISOString()}
+      title={formatTime(at)}
+      className="muted"
+    >
+      {relative}
+      {edited ? " · edited" : ""}
+    </time>
   );
 }

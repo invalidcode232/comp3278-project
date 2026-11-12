@@ -1,12 +1,16 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { Db } from "../db";
 
-/** Thread projection with author/topic details and independently computed counts. */
-export interface ThreadView {
+/** Post projection with author/topic details and independently computed counts. */
+export interface PostView {
   /** Stable identifier used to reference this record. */
   id: number;
+  /** Immediate parent, or null for a root post. Immutable after creation. */
+  parent_id: number | null;
+  /** Erasure timestamp; null means the post is active. */
+  deleted_at: Date | null;
   /** Internal UUID of the content author. */
-  author_id: string;
+  author_id: string | null;
   /** Optional plain-text content; null means image-only content. */
   body: string | null;
   /** Shared attachment image ID, or null for text-only content. */
@@ -16,19 +20,19 @@ export interface ThreadView {
   /** Whether the modification timestamp is later than creation. */
   edited: number; // 1 when updated_at > created_at
   /** Public account handle used in profile URLs. */
-  handle: string;
+  handle: string | null;
   /** Human-readable account name shown in the UI. */
-  display_name: string;
+  display_name: string | null;
   /** Shared avatar image ID, or null for the initial fallback. */
   avatar_image_id: number | null;
   /** Numeric key of the fixed seeded topic. */
-  topic_id: number;
+  topic_id: number | null;
   /** Topic label displayed with the thread. */
-  topic_name: string;
+  topic_name: string | null;
   /** Computed number of distinct users liking this content. */
   like_count: number;
-  /** Computed number of comments belonging to this thread. */
-  comment_count: number;
+  /** Computed number of active direct replies belonging to this post. */
+  reply_count: number;
   /** SQL EXISTS result: 1 when the current viewer likes this content, otherwise 0. */
   liked_by_me: number; // 1 / 0 from EXISTS
 }
@@ -39,34 +43,35 @@ export interface ThreadView {
  * The first ? is always the viewer's user id (or NULL when logged out).
  *
  * The counts are correlated subqueries rather than JOIN + GROUP BY: joining
- * thread_likes and comments together would multiply rows (likes x comments)
- * and inflate both counts. Each subquery uses an index on thread_id.
+ * post_likes and replies together would multiply rows (likes x replies)
+ * and inflate both counts. Each subquery uses an index on post_id.
  */
 
 /** Shared thread projection with independent counts to avoid join multiplication. */
-const THREAD_SELECT = `
-  SELECT t.id, t.author_id, t.body, t.image_id, t.created_at,
+const POST_SELECT = `
+  SELECT t.id, t.parent_id, t.deleted_at, t.author_id, t.body, t.image_id, t.created_at,
          (t.updated_at > t.created_at) AS edited,
          u.handle, u.display_name, u.avatar_image_id,
          tp.id AS topic_id, tp.name AS topic_name,
-         (SELECT COUNT(*) FROM thread_likes tl WHERE tl.thread_id = t.id) AS like_count,
-         (SELECT COUNT(*) FROM comments c WHERE c.thread_id = t.id)       AS comment_count,
-         EXISTS (SELECT 1 FROM thread_likes tl
-                 WHERE tl.thread_id = t.id AND tl.user_id = ?)          AS liked_by_me
-  FROM threads t
-  JOIN users  u  ON u.id  = t.author_id
-  JOIN topics tp ON tp.id = t.topic_id`;
+         (SELECT COUNT(*) FROM post_likes tl WHERE tl.post_id = t.id) AS like_count,
+         (SELECT COUNT(*) FROM posts c WHERE c.parent_id = t.id AND c.deleted_at IS NULL)       AS reply_count,
+         EXISTS (SELECT 1 FROM post_likes tl
+                 WHERE tl.post_id = t.id AND tl.user_id = ?)          AS liked_by_me
+  FROM posts t
+  LEFT JOIN users  u  ON u.id  = t.author_id
+  LEFT JOIN topics tp ON tp.id = t.topic_id`;
 
 /** "All" feed: newest threads from everyone.
  * @param db Pool or transaction connection used for all queries in this operation.
  * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
  */
-export async function listAllThreads(
+export async function listAllPosts(
   db: Db,
   viewerId: string | null,
-): Promise<ThreadView[]> {
-  const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
-    `${THREAD_SELECT}
+): Promise<PostView[]> {
+  const [rows] = await db.execute<(PostView & RowDataPacket)[]>(
+    `${POST_SELECT}
+     WHERE t.parent_id IS NULL AND t.deleted_at IS NULL
      ORDER BY t.created_at DESC, t.id DESC
      LIMIT 50`,
     [viewerId],
@@ -78,13 +83,13 @@ export async function listAllThreads(
  * @param db Pool or transaction connection used for all queries in this operation.
  * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
  */
-export async function listFollowingThreads(
+export async function listFollowingPosts(
   db: Db,
   viewerId: string,
-): Promise<ThreadView[]> {
-  const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
-    `${THREAD_SELECT}
-     WHERE t.author_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = ?)
+): Promise<PostView[]> {
+  const [rows] = await db.execute<(PostView & RowDataPacket)[]>(
+    `${POST_SELECT}
+     WHERE t.parent_id IS NULL AND t.deleted_at IS NULL AND t.author_id IN (SELECT f.followee_id FROM follows f WHERE f.follower_id = ?)
      ORDER BY t.created_at DESC, t.id DESC
      LIMIT 50`,
     [viewerId, viewerId],
@@ -97,14 +102,14 @@ export async function listFollowingThreads(
  * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
  * @param topicId Numeric identifier of the seeded topic.
  */
-export async function listTopicThreads(
+export async function listTopicPosts(
   db: Db,
   viewerId: string | null,
   topicId: number,
-): Promise<ThreadView[]> {
-  const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
-    `${THREAD_SELECT}
-     WHERE t.topic_id = ?
+): Promise<PostView[]> {
+  const [rows] = await db.execute<(PostView & RowDataPacket)[]>(
+    `${POST_SELECT}
+     WHERE t.parent_id IS NULL AND t.deleted_at IS NULL AND t.topic_id = ?
      ORDER BY t.created_at DESC, t.id DESC
      LIMIT 50`,
     [viewerId, topicId],
@@ -117,14 +122,14 @@ export async function listTopicThreads(
  * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
  * @param authorId Authenticated author UUID used to enforce ownership.
  */
-export async function listUserThreads(
+export async function listUserPosts(
   db: Db,
   viewerId: string | null,
   authorId: string,
-): Promise<ThreadView[]> {
-  const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
-    `${THREAD_SELECT}
-     WHERE t.author_id = ?
+): Promise<PostView[]> {
+  const [rows] = await db.execute<(PostView & RowDataPacket)[]>(
+    `${POST_SELECT}
+     WHERE t.parent_id IS NULL AND t.deleted_at IS NULL AND t.author_id = ?
      ORDER BY t.created_at DESC, t.id DESC`,
     [viewerId, authorId],
   );
@@ -136,16 +141,16 @@ export async function listUserThreads(
  * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
  * @param collectionId Numeric identifier of the target collection.
  */
-export async function listCollectionThreads(
+export async function listCollectionPosts(
   db: Db,
   viewerId: string,
   collectionId: number,
-): Promise<ThreadView[]> {
-  const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
-    `${THREAD_SELECT}
-     JOIN collection_threads ct ON ct.thread_id = t.id
+): Promise<PostView[]> {
+  const [rows] = await db.execute<(PostView & RowDataPacket)[]>(
+    `${POST_SELECT}
+     JOIN collection_posts ct ON ct.post_id = t.id
      JOIN collections col       ON col.id = ct.collection_id
-     WHERE ct.collection_id = ? AND col.owner_id = ?
+     WHERE ct.collection_id = ? AND col.owner_id = ? AND t.deleted_at IS NULL
      ORDER BY ct.saved_at DESC, t.id DESC`,
     [viewerId, collectionId, viewerId],
   );
@@ -157,31 +162,33 @@ export async function listCollectionThreads(
  * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
  * @param threadId Numeric identifier of the target thread.
  */
-export async function getThread(
+export async function getPost(
   db: Db,
   viewerId: string | null,
   threadId: number,
-): Promise<ThreadView | null> {
-  const [rows] = await db.execute<(ThreadView & RowDataPacket)[]>(
-    `${THREAD_SELECT}
+): Promise<PostView | null> {
+  const [rows] = await db.execute<(PostView & RowDataPacket)[]>(
+    `${POST_SELECT}
      WHERE t.id = ?`,
     [viewerId, threadId],
   );
   return rows[0] ?? null;
 }
 
-/** Called inside a transaction together with the image insert (see actions/threads.ts).
+/** Called inside a transaction together with the image insert (see actions/posts.ts).
  * @param db Pool or transaction connection used for all queries in this operation.
  * @param t Validated thread content; author identity comes from the session.
  */
-export async function createThread(
+export async function createPost(
   db: Db,
   t: {
     /** Authenticated author UUID supplied by the action, never trusted from form data. */
     authorId: string;
 
-    /** Seeded topic identifier fixed at thread creation. */
-    topicId: number;
+    /** Seeded topic for a root; null for replies. */
+    topicId: number | null;
+    /** Existing immediate parent for a reply; null for a root. */
+    parentId: number | null;
 
     /** Optional plain-text content; null means image-only content. */
     body: string | null;
@@ -191,9 +198,9 @@ export async function createThread(
   },
 ): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO threads (author_id, topic_id, body, image_id)
-     VALUES (?, ?, ?, ?)`,
-    [t.authorId, t.topicId, t.body, t.imageId],
+    `INSERT INTO posts (parent_id, author_id, topic_id, body, image_id)
+     VALUES (?, ?, ?, ?, ?)`,
+    [t.parentId, t.authorId, t.topicId, t.body, t.imageId],
   );
   return result.insertId;
 }
@@ -208,7 +215,7 @@ export async function createThread(
  * @param authorId Authenticated author UUID used to enforce ownership.
  * @param t Validated thread content; author identity comes from the session.
  */
-export async function updateThread(
+export async function updatePost(
   db: Db,
   threadId: number,
   authorId: string,
@@ -221,27 +228,71 @@ export async function updateThread(
   },
 ): Promise<boolean> {
   const [result] = await db.execute<ResultSetHeader>(
-    `UPDATE threads
+    `UPDATE posts
      SET body = ?, image_id = ?
-     WHERE id = ? AND author_id = ?`,
+     WHERE id = ? AND author_id = ? AND deleted_at IS NULL`,
     [t.body, t.imageId, threadId, authorId],
   );
   return result.affectedRows === 1;
 }
 
-/** Comments, likes and collection entries go with it via ON DELETE CASCADE.
- * @param db Pool or transaction connection used for all queries in this operation.
- * @param threadId Numeric identifier of the target thread.
- * @param authorId Authenticated author UUID used to enforce ownership.
+/** Erase an owned post while retaining its identity and descendants. Caller owns the transaction.
+ * @param db Transaction connection coordinated with image cleanup.
+ * @param postId Post or reply to erase.
+ * @param authorId Authenticated owner.
+ * @returns Whether an active owned post was erased.
  */
-export async function deleteThread(
+export async function deletePost(
   db: Db,
-  threadId: number,
+  postId: number,
   authorId: string,
 ): Promise<boolean> {
   const [result] = await db.execute<ResultSetHeader>(
-    "DELETE FROM threads WHERE id = ? AND author_id = ?",
-    [threadId, authorId],
+    `UPDATE posts SET body=NULL, image_id=NULL, author_id=NULL, deleted_at=UTC_TIMESTAMP()
+     WHERE id=? AND author_id=? AND deleted_at IS NULL`,
+    [postId, authorId],
   );
-  return result.affectedRows === 1;
+  if (!result.affectedRows) return false;
+  await db.execute("DELETE FROM post_likes WHERE post_id=?", [postId]);
+  await db.execute("DELETE FROM collection_posts WHERE post_id=?", [postId]);
+  return true;
+}
+
+/** List direct children, including tombstones with surviving conversations, in chronological order.
+ * @param db Query executor.
+ * @param viewerId Current viewer or null.
+ * @param parentId Immediate parent selected in the conversation view.
+ */
+export async function listReplies(
+  db: Db,
+  viewerId: string | null,
+  parentId: number,
+): Promise<PostView[]> {
+  const [rows] = await db.execute<(PostView & RowDataPacket)[]>(
+    `${POST_SELECT} WHERE t.parent_id=? ORDER BY t.created_at,t.id`,
+    [viewerId, parentId],
+  );
+  return rows;
+}
+
+/** Retrieve ancestor context oldest-first using a recursive CTE; no nested UI indentation is needed.
+ * Parent links are immutable and creation only references existing rows, so cycles cannot be formed by the app.
+ * @param db Query executor.
+ * @param viewerId Current viewer or null.
+ * @param postId Selected root or reply.
+ */
+export async function listAncestors(
+  db: Db,
+  viewerId: string | null,
+  postId: number,
+): Promise<PostView[]> {
+  const [rows] = await db.execute<(PostView & RowDataPacket)[]>(
+    `WITH RECURSIVE ancestors AS (
+       SELECT parent_id AS id, 1 AS depth FROM posts WHERE id=? AND parent_id IS NOT NULL
+       UNION ALL SELECT p.parent_id,a.depth+1 FROM posts p JOIN ancestors a ON p.id=a.id
+       WHERE p.parent_id IS NOT NULL
+     ) ${POST_SELECT} JOIN ancestors a ON a.id=t.id ORDER BY a.depth DESC`,
+    [postId, viewerId],
+  );
+  return rows;
 }

@@ -10,7 +10,7 @@ export interface CollectionRow {
   /** Creation timestamp decoded as a Date from UTC storage. */
   created_at: Date;
   /** Computed number of associated threads; not a stored counter. */
-  thread_count: number;
+  post_count: number;
 }
 
 /** The owner's collections with how many threads each holds.
@@ -22,9 +22,9 @@ export async function listCollections(
   ownerId: string,
 ): Promise<CollectionRow[]> {
   const [rows] = await db.execute<(CollectionRow & RowDataPacket)[]>(
-    `SELECT c.id, c.name, c.created_at, COUNT(ct.thread_id) AS thread_count
+    `SELECT c.id, c.name, c.created_at, COUNT(ct.post_id) AS post_count
      FROM collections c
-     LEFT JOIN collection_threads ct ON ct.collection_id = c.id
+     LEFT JOIN collection_posts ct ON ct.collection_id = c.id
      WHERE c.owner_id = ?
      GROUP BY c.id, c.name, c.created_at
      ORDER BY c.name`,
@@ -61,7 +61,7 @@ export async function getCollection(
  * @param ownerId Authenticated owner UUID used to scope collection access.
  * @param threadId Numeric identifier of the target thread.
  */
-export async function listCollectionsForThread(
+export async function listCollectionsForPost(
   db: Db,
   ownerId: string,
   threadId: number,
@@ -74,13 +74,13 @@ export async function listCollectionsForThread(
     name: string;
 
     /** SQL EXISTS result: 1 when this collection contains the selected thread. */
-    has_thread: number;
+    has_post: number;
   }[]
 > {
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT c.id, c.name,
-            EXISTS (SELECT 1 FROM collection_threads ct
-                    WHERE ct.collection_id = c.id AND ct.thread_id = ?) AS has_thread
+            EXISTS (SELECT 1 FROM collection_posts ct
+                    WHERE ct.collection_id = c.id AND ct.post_id = ?) AS has_post
      FROM collections c
      WHERE c.owner_id = ?
      ORDER BY c.name`,
@@ -94,7 +94,7 @@ export async function listCollectionsForThread(
     name: string;
 
     /** SQL EXISTS result: 1 when this collection contains the selected thread. */
-    has_thread: number;
+    has_post: number;
   }[];
 }
 
@@ -134,7 +134,7 @@ export async function renameCollection(
   return result.affectedRows === 1;
 }
 
-/** collection_threads rows go with it (ON DELETE CASCADE); the threads themselves stay.
+/** collection_posts rows go with it (ON DELETE CASCADE); the threads themselves stay.
  * @param db Pool or transaction connection used for all queries in this operation.
  * @param ownerId Authenticated owner UUID used to scope collection access.
  * @param collectionId Numeric identifier of the target collection.
@@ -161,16 +161,16 @@ export async function deleteCollection(
  * @param collectionId Numeric identifier of the target collection.
  * @param threadId Numeric identifier of the target thread.
  */
-export async function addThreadToCollection(
+export async function addPostToCollection(
   db: Db,
   ownerId: string,
   collectionId: number,
   threadId: number,
 ): Promise<void> {
   await db.execute(
-    `INSERT IGNORE INTO collection_threads (collection_id, thread_id)
-     SELECT c.id, ? FROM collections c
-     WHERE c.id = ? AND c.owner_id = ?`,
+    `INSERT IGNORE INTO collection_posts (collection_id, post_id)
+     SELECT c.id, p.id FROM collections c JOIN posts p ON p.id = ?
+     WHERE c.id = ? AND c.owner_id = ? AND p.parent_id IS NULL AND p.deleted_at IS NULL`,
     [threadId, collectionId, ownerId],
   );
 }
@@ -181,16 +181,16 @@ export async function addThreadToCollection(
  * @param collectionId Numeric identifier of the target collection.
  * @param threadId Numeric identifier of the target thread.
  */
-export async function removeThreadFromCollection(
+export async function removePostFromCollection(
   db: Db,
   ownerId: string,
   collectionId: number,
   threadId: number,
 ): Promise<void> {
   await db.execute(
-    `DELETE ct FROM collection_threads ct
+    `DELETE ct FROM collection_posts ct
      JOIN collections c ON c.id = ct.collection_id
-     WHERE ct.collection_id = ? AND ct.thread_id = ? AND c.owner_id = ?`,
+     WHERE ct.collection_id = ? AND ct.post_id = ? AND c.owner_id = ?`,
     [collectionId, threadId, ownerId],
   );
 }
