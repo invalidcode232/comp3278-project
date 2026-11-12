@@ -175,3 +175,6 @@ Runtime feature acceptance remains pending until the corresponding checks below.
   confirmation positioning. Avatar uploads now use a styled chooser with preview.
 - All mutations during validation used disposable synthetic accounts/seed data
   in a separate MySQL container; the existing local user database was not reset.
+- Restarted the local production app at http://127.0.0.1:3000; the home page
+  returns 200 and mixed-case substring `oTo` returns Photography from the existing
+  database. Removed the disposable validation server/container afterward.
