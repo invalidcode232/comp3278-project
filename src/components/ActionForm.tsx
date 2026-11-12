@@ -63,7 +63,7 @@ export function ActionForm({
           [...(i.files ?? [])].some((f) => f.size > MAX_IMAGE_BYTES),
         );
         if (tooBig) {
-          setClientError("Images must be 5 MB or smaller.");
+          setClientError("Images must be 10 MiB or smaller.");
           return;
         }
         setClientError(null);

@@ -179,7 +179,7 @@ Other scripts: `npm run typecheck` runs `tsc --noEmit`.
     │   │   └── comments.ts  likes.ts  follows.ts  collections.ts  messages.ts
     │   ├── auth.ts             # session cookie (httpOnly), getCurrentUser(), requireUser()
     │   ├── image-lifecycle.ts  # serialized reference changes and atomic orphan cleanup
-    │   ├── upload.ts           # 5 MB limit, file type from magic bytes, SHA-256, dedup
+    │   ├── upload.ts           # 10 MiB limit, file type from magic bytes, SHA-256, dedup
     │   ├── limits.ts           # upload limits shared with the browser check
     │   ├── validate.ts         # form parsing helpers
     │   └── format.ts
@@ -194,7 +194,7 @@ How a request flows: a page (server component) calls `src/lib/queries/*` to read
 
 - **Sessions.** Login creates a row in `sessions` with a 256-bit random token and an expiry 30 days out, and stores the token in an `httpOnly`, `SameSite=Lax` cookie. Every request looks up the token with `expires_at > UTC_TIMESTAMP()`. Authenticated activity renews the expiry and cookie for 30 days, at most once per 24 hours, through `src/proxy.ts`. An expired session cannot renew. Logging out deletes the row.
 - **Passwords** are hashed with bcrypt (cost 10) via `bcryptjs`.
-- **Images.** The type is detected from the file's first bytes, not trusted from the browser. Files over 5 MB are refused, in the browser before upload and again on the server. Images are stored once per SHA-256 and served only after current-reference authorization, with `Cache-Control: private, no-store` and an ETag.
+- **Images.** The type is detected from the file's first bytes, not trusted from the browser. Files over 10 MiB are refused, in the browser before upload and again on the server. Images are stored once per SHA-256 and served only after current-reference authorization, with `Cache-Control: private, no-store` and an ETag.
 - **Image access and lifecycle.** Avatars and images referenced by public threads/comments are public. DM-only images require the authenticated sender or recipient. Unknown/inaccessible images both return 404, including conditional requests. Every response uses `private, no-store` because a public image can become private when references change. Previously cached copies from older releases cannot be recalled; this policy governs new responses.
 - **Cleanup.** `withImageTransaction` serializes image/reference mutations using a database-scoped advisory lock, then performs the mutation and deletes unreferenced images in one transaction. Cleanup checks avatars, threads, comments, and messages; it includes replacements and account/thread cascades. Shared images survive until their last reference disappears. All application image-reference writes must use this helper.
 - **Time zone.** All `DATETIME` values are stored in UTC. The pool sets `time_zone = '+00:00'` on every connection, and the server formats times in its local time zone.
@@ -222,14 +222,14 @@ How a request flows: a page (server component) calls `src/lib/queries/*` to read
   ```
   Then set `DB_USER=comp3278` and `DB_PASSWORD=secret`. This user needs `CREATE` and `DROP` rights on `comp3278_social` for `db:reset` to work.
 
-**`ER_NET_PACKET_TOO_LARGE` / `Got a packet bigger than 'max_allowed_packet' bytes` when uploading.** Images go into `LONGBLOB` columns in one INSERT, so `max_allowed_packet` must be larger than the biggest upload (5 MB). MySQL 8's default is 64 MB, and the Docker service sets `--max-allowed-packet=64M`. If your server has a smaller value:
+**`ER_NET_PACKET_TOO_LARGE` / `Got a packet bigger than 'max_allowed_packet' bytes` when uploading.** Images go into `LONGBLOB` columns in one INSERT, so `max_allowed_packet` must be larger than the biggest upload (10 MiB). MySQL 8's default is 64 MB, and the Docker service sets `--max-allowed-packet=64M`. If your server has a smaller value:
 ```sql
 SHOW VARIABLES LIKE 'max_allowed_packet';
 SET GLOBAL max_allowed_packet = 67108864;   -- 64 MB, lasts until restart
 ```
 To make it permanent, add `max_allowed_packet=64M` under `[mysqld]` in `my.cnf` and restart MySQL.
 
-**`Images must be 5 MB or smaller` / `Only JPEG, PNG, WebP and GIF images are allowed`.** These are the app's upload rules, working as intended.
+**`Images must be 10 MiB or smaller` / `Only JPEG, PNG, WebP and GIF images are allowed`.** These are the app's upload rules, working as intended.
 
 **`DB_NAME in .env is "…" but db/schema.sql creates "comp3278_social"`.** Set `DB_NAME=comp3278_social`.
 

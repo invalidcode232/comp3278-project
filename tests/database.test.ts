@@ -1,3 +1,4 @@
+import { saveImage } from "../src/lib/upload";
 import { withImageTransaction } from "../src/lib/image-lifecycle";
 import { insertImage, getImage, getVisibleImage } from "../src/lib/queries/images";
 import { createHash } from "node:crypto";
@@ -94,6 +95,28 @@ test("database-backed policy boundaries", async (t) => {
       } finally {
         await withImageTransaction(async (conn) => { await conn.execute("DELETE FROM users WHERE id = ?", [peer]); });
       }
+    });
+    /** Both upload validation and the database accept exactly 10 MiB, not one byte more. */
+    await t.test("image byte boundary and shared cleanup", async () => {
+      const bytes = Buffer.alloc(10 * 1024 * 1024);
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(bytes);
+      const file = new File([bytes], "boundary.png", { type: "image/png" });
+      let imageId = 0;
+      await withImageTransaction(async (conn) => {
+        imageId = await saveImage(conn, file);
+        await sendMessage(conn, { senderId: userId, recipientId: userId, body: null, imageId });
+      });
+      assert.equal((await getImage(pool, imageId))?.data.length, bytes.length);
+      await assert.rejects(withImageTransaction(async (conn) => {
+        await saveImage(conn, new File([Buffer.concat([bytes, Buffer.from([0])])], "large.png"));
+      }), /10 MiB/);
+      await assert.rejects(withImageTransaction(async (conn) => {
+        const oversized = Buffer.concat([bytes, Buffer.from([1])]);
+        await insertImage(conn, { sha256: createHash("sha256").update(oversized).digest("hex"), mimeType: "image/png", byteSize: oversized.length, data: oversized });
+      }), /chk_images_size/);
+      await assert.rejects(withImageTransaction(async (conn) => {
+        await saveImage(conn, new File(["not an image"], "fake.png", { type: "image/png" }));
+      }), /Only JPEG/);
     });
   } finally {
     await withImageTransaction(async (conn) => { await conn.execute("DELETE FROM users WHERE id = ?", [userId]); });

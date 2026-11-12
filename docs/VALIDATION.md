@@ -44,3 +44,12 @@ Runtime feature acceptance remains pending until the corresponding checks below.
 - No new ER entity or attribute: visibility derives from relationships and
   cleanup enforces the disjunction of the four possible reference types.
 - HTTP response and browser checks remain in the combined workflow validation.
+
+## 12 November 2026 — 10 MiB images (D10)
+
+- Applied `002-image-limit.sql` without resetting existing data.
+- Real MySQL tests accept exactly 10,485,760 bytes and reject one additional byte
+  at both the upload helper and database constraint. A spoofed MIME type with
+  invalid file bytes is rejected.
+- Shared UI validation/hints now use 10 MiB. Server Action body allowance is
+  12 MB to accommodate multipart overhead and text fields.

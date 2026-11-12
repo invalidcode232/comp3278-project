@@ -28,7 +28,7 @@ skipped, rather than resolved with invented dates or responsibilities.
 | D07 | Any signed-in user may message any user, including themselves. Self-messages appear once, on the sending side only. | Retain unrestricted DMs while adding self-messaging. | Self-messaging is implemented in schema/actions/pages, with received-branch exclusion in conversation queries. A non-destructive migration removes the old constraint. Database checks verify single entries and message ordering. No read receipts or message-request workflow is added. |
 | D08 | Require participant access to DM-only images. Images also used publicly remain public. Caching must respect permissions. | Protect private attachments without hiding images that have a public reference. | Implemented reference/participant authorization before conditional response handling, with private no-store caching. Database visibility checks pass; HTTP/browser checks are tracked separately. An image's content hash or deduplication does not itself grant access. |
 | D09 | Delete images immediately when their last reference is removed. | Reclaim unused image data while preserving shared images. | Implemented cleanup of all four reference types within serialized image transactions, including replacement and deletion cascades. Database checks cover sharing, rollback, concurrent deduplication, and final-reference deletion. |
-| D10 | Increase the image upload limit to 10 MiB; keep other limits and supported formats unchanged. | Allow larger image uploads without changing text/profile limits. | Baseline caps images at 5 MiB. Update server/browser validation and database size constraints together. Increase request-size allowance enough to carry a 10 MiB file plus form overhead. |
+| D10 | Increase the image upload limit to 10 MiB; keep other limits and supported formats unchanged. | Allow larger image uploads without changing text/profile limits. | Implemented a 10 MiB cap in server/browser validation and the schema, with a preserving migration for existing databases. Server Action request allowance is 12 MB for multipart overhead. |
 | D11 | Keep both local MySQL and Docker MySQL setup; run locally. | Preserve both existing setup options without adding hosted deployment. | Both paths are documented. Clean-checkout reproduction still needs verification. Database schema/reset commands recreate the database and must not be run against data that must be preserved. |
 
 ## Adopted technical baseline
@@ -67,7 +67,7 @@ Text lengths below describe the baseline's JavaScript string-length checks
 - [x] D07: self-messaging across schema, actions, queries, and UI.
 - [x] D08: private-image authorization and permission-aware caching.
 - [x] D09: immediate cleanup of images with no remaining references.
-- [ ] D10: consistent 10 MiB upload limits and request overhead allowance.
+- [x] D10: consistent 10 MiB upload limits and request overhead allowance.
 - [ ] Verify preserved behavior and both local setup paths (D02/D04–D06/D11).
 
 Unchecked items remain pending; checked items have the evidence described above. There are no further pending

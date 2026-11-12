@@ -42,7 +42,7 @@ export function ContentFields({
       ) : null}
       <label className="block text-sm text-gray-600">
         {currentImageId ? "Replace image" : "Image (optional)"}: JPEG, PNG, WebP
-        or GIF, up to 5 MB
+        or GIF, up to 10 MiB
         <input
           type="file"
           name="image"

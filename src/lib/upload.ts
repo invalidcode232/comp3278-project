@@ -43,7 +43,7 @@ export function getUploadedFile(
 /** Check a file, then store it (deduplicated by SHA-256). Returns the image id. */
 export async function saveImage(db: Db, file: File): Promise<number> {
   if (file.size > MAX_IMAGE_BYTES)
-    throw new InputError("Images must be 5 MB or smaller.");
+    throw new InputError("Images must be 10 MiB or smaller.");
   const data = Buffer.from(await file.arrayBuffer());
   const mimeType = sniffMime(data);
   if (!mimeType)

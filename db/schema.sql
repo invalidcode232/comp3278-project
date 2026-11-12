@@ -28,7 +28,7 @@ CREATE TABLE images (
   PRIMARY KEY (id),
   UNIQUE KEY uq_images_sha256 (sha256),
   CONSTRAINT chk_images_mime CHECK (mime_type IN ('image/jpeg','image/png','image/webp','image/gif')),
-  CONSTRAINT chk_images_size CHECK (byte_size BETWEEN 1 AND 5242880),   -- 5 MB
+  CONSTRAINT chk_images_size CHECK (byte_size BETWEEN 1 AND 10485760),   -- 10 MiB
   -- byte_size is derivable from data. It is stored so lists can show sizes without
   -- reading the BLOB; this CHECK guarantees the stored copy can never disagree.
   CONSTRAINT chk_images_size_matches CHECK (byte_size = LENGTH(data))
