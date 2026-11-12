@@ -99,3 +99,22 @@ Runtime feature acceptance remains pending until the corresponding checks below.
   not tested; their setup instructions remain supported but unverified here.
 - Tests used only the disposable database. No existing group database was
   migrated or reset. Temporary servers/container/checkouts were removed afterward.
+
+## 12 November 2026 — animated counters and like feedback
+
+- Added a reusable directional counter to post/reply likes, reply totals, and
+  profile follow counts. Like controls update optimistically, serialize pending
+  clicks, expose pressed state, and roll back with an announced error on failure.
+- Type checking and production build passed. Browser acceptance passed against
+  the running local app using disposable synthetic accounts, with cleanup.
+- Added browser checks for liked colour/pressed state, increment direction,
+  reduced-motion animation suppression, unlike, transport-error rollback, and
+  successful retry. Visually inspected the captured liked state.
+- The first run's failure was a test selector matching Next.js's route announcer
+  as well as the intended error alert; scoped the selector and reran successfully.
+- Counter timing is an approximation. Safari Personal reference inspection
+  verified composer entrance keyframes, but did not isolate active counter
+  keyframes; do not claim exact motion parity. No Threads posts or likes were
+  changed by this inspection.
+- No database schema change is included; unified posts/replies and the larger
+  visual refactor remain pending as recorded in DECISIONS.md.

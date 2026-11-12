@@ -83,3 +83,24 @@ Record the date, chosen behavior, rationale, and who confirmed consequential
 changes. Keep policy decisions distinct from implementation and validation
 status. Synchronize affected documentation when behavior changes; do not claim
 completion from approval alone.
+
+## Subsequent UI and conversation decisions — 12 November 2026
+
+- Target a close visual replication of Threads, including counters and colour
+  changes. Keep Threadly's existing feature scope rather than adding unsupported
+  Threads-only controls. Logged-in Safari Personal is the reference.
+- Unify root posts and replies into one entity: roots have a NULL parent and
+  replies reference another post. This model/migration is agreed but **not yet
+  implemented**; the existing threads/comments tables remain in use.
+- When deleting a post, keep replies connected under a “Deleted post” placeholder.
+  Clear deleted content and its image reference. This is agreed but **not yet
+  implemented**. Account-deletion handling and root-only collection semantics
+  need to be reconciled with the new model before migration.
+- Counter feedback is implemented independently through shared UI components:
+  200ms directional count movement and 180ms like colour/fill transitions,
+  optimistic like updates, failure rollback, and reduced-motion support.
+  These counter timings approximate the reference; they are not verified exact
+  Threads timings. Profile follow counts and reply totals reuse the counter.
+- Reference inspection measured new-post and expanded-reply dialogs at 620px
+  wide with 16px panel corners, a 70%-black backdrop, and 200ms ease-in-out
+  opacity 0→1 / scale 0.95→1 entrances. These dialog changes remain pending.

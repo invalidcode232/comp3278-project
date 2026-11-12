@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { followAction, unfollowAction } from "@/actions/follows";
+import { AnimatedCount } from "@/components/AnimatedCount";
 import { Avatar } from "@/components/Avatar";
 import { ThreadList } from "@/components/ThreadList";
 import { getCurrentUser } from "@/lib/auth";
@@ -49,9 +50,9 @@ export default async function ProfilePage({
           </p>
           {user.bio && <p className="whitespace-pre-wrap">{user.bio}</p>}
           <p className="text-sm">
-            <strong>{counts.followers}</strong>{" "}
+            <strong><AnimatedCount value={counts.followers} /></strong>{" "}
             {counts.followers === 1 ? "follower" : "followers"} ·{" "}
-            <strong>{counts.following}</strong> following
+            <strong><AnimatedCount value={counts.following} /></strong> following
           </p>
         </div>
         <div className="flex gap-2">

@@ -138,6 +138,35 @@ test("agreed policies through browser forms and HTTP", async ({
     await expect(
       page.getByRole("button", { name: "♥ Liked · 1", exact: true }),
     ).toBeVisible();
+    const like = page.locator("article .like-button");
+    await expect(like).toBeEnabled();
+    await expect(like).toHaveAttribute("aria-pressed", "true");
+    await expect(like).toHaveCSS("color", "rgb(255, 46, 64)");
+    await expect(like.locator(".counter-viewport")).toHaveAttribute("data-direction", "up");
+    await page.screenshot({ path: testInfo.outputPath("animated-like.png") });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await like.click();
+    await expect(like).toBeEnabled();
+    await expect(like).toHaveAttribute("aria-pressed", "false");
+    await expect(like.locator(".counter-in")).toHaveCSS("animation-name", "none");
+    await expect(like).toHaveAccessibleName("♡ Like · 0");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    // A failed mutation must restore the saved count and offer an announced retry.
+    await page.route(
+      "**/*",
+      /** Simulate a server-action transport failure without mutating saved data. */
+      async (route) => {
+        if (route.request().headers()["next-action"]) await route.abort("failed");
+        else await route.continue();
+      },
+    );
+    await like.click();
+    await expect(page.locator("article").getByRole("alert")).toHaveText("Couldn’t save like. Try again.");
+    await expect(like).toHaveAccessibleName("♡ Like · 0");
+    await page.unroute("**/*");
+    await like.click();
+    await expect(like).toBeEnabled();
+    await expect(like).toHaveAccessibleName("♥ Liked · 1");
     await page.getByPlaceholder("Write a comment…").fill("Browser comment");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
     await expect(

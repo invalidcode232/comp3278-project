@@ -26,3 +26,57 @@
     @apply text-sm text-gray-500;
   }
 }
+
+/* Shared feedback: counters inherit the control colour and reserve a stable line height.
+   These timings approximate Threads' counter motion; they are not measured parity. */
+.like-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  min-width: 48px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #737373;
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease, transform 100ms ease-in-out;
+}
+.like-button[aria-pressed="true"] { color: #ff2e40; }
+.like-button:active:not(:disabled) { transform: scale(0.96); }
+.like-button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.like-button:disabled { cursor: progress; }
+.like-heart { overflow: visible; }
+.like-heart path {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+  transition: fill 180ms ease;
+}
+.like-button[aria-pressed="true"] .like-heart path { fill: currentColor; }
+.animated-count { display: inline-grid; vertical-align: baseline; font-variant-numeric: tabular-nums; }
+.counter-viewport { display: inline-grid; position: relative; overflow: hidden; line-height: 1.4; }
+.counter-viewport > span { grid-area: 1 / 1; }
+.counter-viewport[data-direction="up"] { --counter-enter: 100%; --counter-exit: -100%; }
+.counter-viewport[data-direction="down"] { --counter-enter: -100%; --counter-exit: 100%; }
+.counter-in { animation: counter-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.counter-out { animation: counter-out 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes counter-in {
+  from { transform: translateY(var(--counter-enter)); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes counter-out {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(var(--counter-exit)); opacity: 0; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .like-button:hover { background-color: #f5f5f5; }
+  .like-button[aria-pressed="true"]:hover { background-color: #fff0f2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .counter-in, .counter-out { animation: none; }
+  .counter-out { visibility: hidden; }
+  .like-button { transition: color 100ms ease, background-color 100ms ease; }
+  .like-button:active:not(:disabled) { transform: none; }
+}

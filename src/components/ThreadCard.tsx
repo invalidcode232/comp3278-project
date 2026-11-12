@@ -7,6 +7,8 @@ import type { ThreadView } from "@/lib/queries/threads";
 import { Avatar } from "@/components/Avatar";
 import { PostImage } from "@/components/PostImage";
 import { Stamp } from "@/components/Stamp";
+import { AnimatedCount } from "./AnimatedCount";
+import { LikeButton } from "./LikeButton";
 import { ConfirmButton } from "./ConfirmButton";
 
 /** Render one thread with counts and viewer-dependent controls; server actions enforce ownership. */
@@ -55,17 +57,18 @@ export function ThreadCard({
 
       <footer className="mt-3 flex flex-wrap items-center gap-2">
         {viewer ? (
-          <form action={toggleThreadLikeAction}>
-            <input type="hidden" name="thread_id" value={t.id} />
-            <button className={t.liked_by_me ? "btn" : "btn-secondary"}>
-              {t.liked_by_me ? "♥ Liked" : "♡ Like"} · {t.like_count}
-            </button>
-          </form>
+          <LikeButton
+            liked={Boolean(t.liked_by_me)}
+            count={t.like_count}
+            action={toggleThreadLikeAction}
+            field="thread_id"
+            id={t.id}
+          />
         ) : (
           <span className="muted">♡ {t.like_count}</span>
         )}
         <Link href={`/threads/${t.id}`} className="btn-secondary">
-          💬 {t.comment_count}
+          💬 <AnimatedCount value={t.comment_count} />
         </Link>
         {mine && (
           <>

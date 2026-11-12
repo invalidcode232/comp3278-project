@@ -10,6 +10,8 @@ import {
   updateCommentAction,
 } from "@/actions/comments";
 import { toggleCommentLikeAction } from "@/actions/likes";
+import { LikeButton } from "@/components/LikeButton";
+import { AnimatedCount } from "@/components/AnimatedCount";
 import { ActionForm } from "@/components/ActionForm";
 import { Avatar } from "@/components/Avatar";
 import { ContentFields } from "@/components/ContentFields";
@@ -98,7 +100,9 @@ export default async function ThreadPage({
       )}
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Comments ({comments.length})</h2>
+        <h2 className="font-semibold">
+          Comments (<AnimatedCount value={comments.length} />)
+        </h2>
         {comments.map(
           /** Render a comment or its author-only editor, retaining like and delete controls. */
           (c) => {
@@ -151,14 +155,13 @@ export default async function ThreadPage({
                     {c.image_id && <PostImage imageId={c.image_id} />}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {me ? (
-                        <form action={toggleCommentLikeAction}>
-                          <input type="hidden" name="comment_id" value={c.id} />
-                          <button
-                            className={c.liked_by_me ? "btn" : "btn-secondary"}
-                          >
-                            {c.liked_by_me ? "♥" : "♡"} {c.like_count}
-                          </button>
-                        </form>
+                        <LikeButton
+                          liked={Boolean(c.liked_by_me)}
+                          count={c.like_count}
+                          action={toggleCommentLikeAction}
+                          field="comment_id"
+                          id={c.id}
+                        />
                       ) : (
                         <span className="muted">♡ {c.like_count}</span>
                       )}
