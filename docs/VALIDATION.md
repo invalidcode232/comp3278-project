@@ -52,4 +52,30 @@ Runtime feature acceptance remains pending until the corresponding checks below.
   at both the upload helper and database constraint. A spoofed MIME type with
   invalid file bytes is rejected.
 - Shared UI validation/hints now use 10 MiB. Server Action body allowance is
-  12 MB to accommodate multipart overhead and text fields.
+  12 MB to accommodate multipart overhead and text fields. The browser boundary
+  test also exposed the proxy default limit; `proxyClientMaxBodySize` is now
+  raised to 12 MB as well.
+
+## 12 November 2026 — browser acceptance and final documentation
+
+- Production `npm run build` passes with the request proxy.
+- `npm run test:browser` passes in installed Google Chrome against the production
+  server at localhost:33379 and disposable MySQL at localhost:33378.
+- Checked registration, daily cookie renewal (and no immediate second renewal),
+  exact 10 MiB multipart upload, single sending-side self-message rendering,
+  anonymous/outsider denial (including conditional requests), participant access,
+  public-avatar sharing, removal of public access, private collections, fixed
+  topics, thread/comment editing, likes, follows, saved-link cascade, and account
+  deletion with message/image cleanup. Inspected the self-message screenshot.
+- Browser checks found and corrected stale file inputs after successful uploads
+  and the proxy's separate default request-body limit. The regression workflow
+  includes avatar removal after upload and an exact 10 MiB attachment.
+- Additional database checks cover comment-image removal, public thread/comment
+  access, unauthorized thread deletion, and thread-image cascade cleanup.
+- Completed named declaration, parameter, property, and callback documentation;
+  removed the unused generic transaction helper in favor of the image lifecycle
+  transaction owner. TypeScript declaration inspection found no missing docs on
+  named functions/classes/interfaces/type aliases/property signatures in source.
+- Regenerated and visually checked the ER diagram; no new entity/attribute was
+  needed for these policies. Cross-relationship access/cleanup rules are explained
+  alongside the diagram rather than assigned non-course notation.

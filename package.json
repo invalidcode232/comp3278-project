@@ -15,7 +15,8 @@
     "db:schema": "node --env-file=.env scripts/apply-schema.ts",
     "db:seed": "node --env-file=.env scripts/seed.ts",
     "db:reset": "npm run db:schema && npm run db:seed",
-    "test:db": "tsx --test tests/database.test.ts"
+    "test:db": "tsx --test tests/database.test.ts",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",
@@ -25,6 +26,7 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "4.3.5",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",

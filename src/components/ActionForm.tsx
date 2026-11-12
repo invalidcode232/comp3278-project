@@ -26,14 +26,19 @@ export function ActionForm({
 }: {
   /** Server Action invoked with the previous result and submitted form fields. */
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
+
   /** Nested content rendered inside this component. */
   children: ReactNode;
+
   /** Text on the idle submit button. */
   submitLabel: string;
+
   /** Optional CSS classes replacing the component’s default container classes. */
   className?: string;
+
   /** Optional CSS classes for the submit button. */
   buttonClassName?: string;
+
   /** Whether to clear uncontrolled inputs after a successful result. */
   resetOnSuccess?: boolean;
 }) {
@@ -41,9 +46,24 @@ export function ActionForm({
   const [clientError, setClientError] = useState<string | null>(null);
   const ref = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
-    if (resetOnSuccess && state?.ok) ref.current?.reset();
-  }, [state, resetOnSuccess]);
+  useEffect(
+    /** Clear successful uploads; optionally reset all fields, but retain input on failure. */
+    () => {
+      if (!state?.ok) return;
+      if (resetOnSuccess) ref.current?.reset();
+      // A successful upload must not silently reattach the old file on the next
+      // edit/removal. Keep other uncontrolled profile fields unless reset is requested.
+      ref.current
+        ?.querySelectorAll<HTMLInputElement>('input[type="file"]')
+        .forEach(
+          /** Clear the uploaded file so later edits cannot accidentally attach it again. */
+          (input) => {
+            input.value = "";
+          },
+        );
+    },
+    [state, resetOnSuccess],
+  );
 
   const error = clientError ?? state?.error;
 
@@ -51,25 +71,36 @@ export function ActionForm({
     <form
       ref={ref}
       className={className}
-      onSubmit={(e) => {
-        e.preventDefault();
-        // Check file sizes before uploading, so an oversized file never hits
-        // the Server Action body limit. The server checks again (upload.ts).
-        const inputs =
-          e.currentTarget.querySelectorAll<HTMLInputElement>(
-            "input[type=file]",
+      onSubmit={
+        /** Prevent the native submit, check file sizes, and dispatch the Server Action. */
+        (e) => {
+          e.preventDefault();
+          // Check file sizes before uploading, so an oversized file never hits
+          // the Server Action body limit. The server checks again (upload.ts).
+          const inputs =
+            e.currentTarget.querySelectorAll<HTMLInputElement>(
+              "input[type=file]",
+            );
+          const tooBig = [...inputs].some(
+            /** Detect whether this file input contains any oversized attachment. */
+            (i) =>
+              [...(i.files ?? [])].some(
+                /** Compare the selected file byte length with the shared image cap. */
+                (f) => f.size > MAX_IMAGE_BYTES,
+              ),
           );
-        const tooBig = [...inputs].some((i) =>
-          [...(i.files ?? [])].some((f) => f.size > MAX_IMAGE_BYTES),
-        );
-        if (tooBig) {
-          setClientError("Images must be 10 MiB or smaller.");
-          return;
+          if (tooBig) {
+            setClientError("Images must be 10 MiB or smaller.");
+            return;
+          }
+          setClientError(null);
+          const fd = new FormData(e.currentTarget);
+          startTransition(
+            /** Dispatch validated form fields inside a React transition for pending feedback. */
+            () => formAction(fd),
+          );
         }
-        setClientError(null);
-        const fd = new FormData(e.currentTarget);
-        startTransition(() => formAction(fd));
-      }}
+      }
     >
       {children}
       {error && <p className="text-sm text-red-600">{error}</p>}

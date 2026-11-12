@@ -20,9 +20,9 @@ A small social web app: threads grouped by topic, comments, likes, follows, save
 ## Installation
 
 ```bash
-git clone <repo-url> comp3278-social
+git clone https://github.com/invalidcode232/comp3278-project.git comp3278-social
 cd comp3278-social
-npm install
+npm ci
 cp .env.example .env
 ```
 
@@ -173,7 +173,7 @@ Other scripts: `npm run typecheck` runs `tsc --noEmit`.
 ├── .env.example
 └── src/
     ├── lib/
-    │   ├── db.ts               # mysql2 pool, withTransaction(), isMysqlError()
+    │   ├── db.ts               # mysql2 pool and driver error classification
     │   ├── queries/            # ALL SQL: one file per entity, named functions
     │   │   ├── users.ts  sessions.ts  images.ts  topics.ts  threads.ts
     │   │   └── comments.ts  likes.ts  follows.ts  collections.ts  messages.ts
@@ -194,7 +194,7 @@ How a request flows: a page (server component) calls `src/lib/queries/*` to read
 
 - **Sessions.** Login creates a row in `sessions` with a 256-bit random token and an expiry 30 days out, and stores the token in an `httpOnly`, `SameSite=Lax` cookie. Every request looks up the token with `expires_at > UTC_TIMESTAMP()`. Authenticated activity renews the expiry and cookie for 30 days, at most once per 24 hours, through `src/proxy.ts`. An expired session cannot renew. Logging out deletes the row.
 - **Passwords** are hashed with bcrypt (cost 10) via `bcryptjs`.
-- **Images.** The type is detected from the file's first bytes, not trusted from the browser. Files over 10 MiB are refused, in the browser before upload and again on the server. Images are stored once per SHA-256 and served only after current-reference authorization, with `Cache-Control: private, no-store` and an ETag.
+- **Images.** The type is detected from the file's first bytes, not trusted from the browser. Both Server Action and proxy body limits allow 12 MB for multipart overhead. Files over 10 MiB are refused, in the browser before upload and again on the server. Images are stored once per SHA-256 and served only after current-reference authorization, with `Cache-Control: private, no-store` and an ETag.
 - **Image access and lifecycle.** Avatars and images referenced by public threads/comments are public. DM-only images require the authenticated sender or recipient. Unknown/inaccessible images both return 404, including conditional requests. Every response uses `private, no-store` because a public image can become private when references change. Previously cached copies from older releases cannot be recalled; this policy governs new responses.
 - **Cleanup.** `withImageTransaction` serializes image/reference mutations using a database-scoped advisory lock, then performs the mutation and deletes unreferenced images in one transaction. Cleanup checks avatars, threads, comments, and messages; it includes replacements and account/thread cascades. Shared images survive until their last reference disappears. All application image-reference writes must use this helper.
 - **Time zone.** All `DATETIME` values are stored in UTC. The pool sets `time_zone = '+00:00'` on every connection, and the server formats times in its local time zone.
@@ -255,3 +255,17 @@ Do not run `db:reset` as an upgrade: it deletes data. Back up valued data first.
 
 Self-messaging is available from Messages and your own profile. A self-message
 is shown once, aligned on the sending side, and has one conversation-list entry.
+
+## Browser acceptance checks
+
+Build and start the app against the same disposable database used by the tests,
+for example on port 33379 (`npm run build`, then `npm start -- --port 33379`).
+With `RUN_DB_TESTS=1` and the matching `DB_*` environment variables exported, run
+`npm run test:browser`. Set `TEST_BASE_URL` if using another address. The default
+Playwright configuration uses installed Google Chrome (`channel: "chrome"`).
+Tests register/remove synthetic accounts and check session renewal, 10 MiB
+uploads, self-messages, private image access, cleanup, and preserved CRUD flows.
+Screenshots/traces are local ignored files in `test-results/`.
+
+A test run does not authorize resetting any shared database. See
+[validation evidence](docs/VALIDATION.md) for checked environments and limitations.

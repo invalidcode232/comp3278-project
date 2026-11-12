@@ -67,3 +67,7 @@ nbproject/private/
 *~
 \#*\#
 .\#*
+
+# Local browser-test evidence
+/test-results/
+/playwright-report/
