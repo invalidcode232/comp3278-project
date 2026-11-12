@@ -5,6 +5,65 @@ next-env.d.ts
 *.tsbuildinfo
 .env
 .env.local
-.DS_Store
 npm-debug.log*
 .claude/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100/
+.Trashes/
+.TemporaryItems/
+.fseventsd/
+.VolumeIcon.icns
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.stackdump
+
+# Linux desktop metadata
+.directory
+.Trash-*/
+.nfs*
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code and related editors
+.vscode/
+.history/
+*.code-workspace
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Eclipse / NetBeans
+.project
+.classpath
+.settings/
+.metadata/
+nbproject/private/
+
+# Sublime Text
+*.sublime-workspace
+
+# Vim, Emacs, and editor backups
+*.swp
+*.swo
+*~
+\#*\#
+.\#*

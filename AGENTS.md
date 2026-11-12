@@ -30,29 +30,51 @@ questions. Record material conflicts rather than silently inventing requirements
 
 On 12 November 2026, the user selected
 [`invalidcode232/comp3278-project`](https://github.com/invalidcode232/comp3278-project)
-as the implementation baseline. Preserve its existing implementation, including
-TypeScript and database-backed sessions. The stack below records the earlier
-agreement; where it differs from the adopted implementation, record the difference
-in `DECISIONS.md` and resolve it before any migration. Do not rewrite existing
-code merely to match the earlier stack.
+as the implementation baseline. Preserve its TypeScript implementation and
+existing data model unless a change is requested. The user-confirmed decisions in
+`DECISIONS.md` supersede conflicting details in the earlier feature proposal.
 
-- Next.js 14 or later, App Router, JavaScript/JSX rather than TypeScript.
+- Next.js App Router with TypeScript/TSX, retaining the adopted Next.js 16 baseline.
 - MySQL 8.x, accessed with raw SQL through `mysql2/promise`. No ORM.
-- Cookie-based authentication using `iron-session`, or a signed JWT in an
-  httpOnly cookie using `jose`; use `bcryptjs` for password hashing. The choice
-  between the two authentication approaches is tracked in `DECISIONS.md`.
-- Tailwind CSS for styling.
-- Node.js runtime for database routes, not Edge.
-- Store uploaded images in MySQL as `LONGBLOB`, with SHA-256 deduplication.
-  The image table has a UUID primary key and a unique content hash; serve images
-  through `/api/images/[id]`. Resolve private-image access before implementing
-  blanket public caching.
+- Database-backed sessions identified by an httpOnly cookie; use `bcryptjs` for
+  password hashing. Do not migrate to `iron-session` or `jose` to match the old draft.
+- Tailwind CSS for styling; Node.js runtime for database routes, not Edge.
+- Store uploaded images in MySQL as `LONGBLOB`, with SHA-256 deduplication,
+  auto-increment image IDs, and a unique content hash. Serve images through
+  `/api/images/[id]` with the access policy below.
+- Keep both local MySQL and Docker MySQL setup. Run locally; hosted deployment
+  is outside the current plan.
 
-The feature baseline covers accounts and profiles, threads, comments, likes,
+Keep the current feature scope: accounts and profiles, threads, comments, likes,
 follows, collections, seeded topics, images, and direct messages. Do not silently
-drop features or expand scope. Keep detailed requirements outside this agreement.
-Select compatible supported dependency versions and commit the lockfile; do not
-interpret “14 or later” as a requirement to use an old Next.js release.
+drop features or expand scope. Retain the baseline's user UUIDs, numeric entity
+IDs, and conversations derived from message pairs. Select compatible supported
+dependencies and commit the lockfile.
+
+### Confirmed product policies
+
+These are intended behavior, not a claim that the implementation already complies.
+`DECISIONS.md` records the baseline differences and pending implementation work.
+
+- Sessions expire after 30 days of inactivity. Authenticated activity renews both
+  the database expiry and cookie lifetime at most once daily. Preserve logout of
+  the current session and invalidation of all sessions on account deletion.
+- Collections remain private to their owner. Thread topics remain fixed after
+  creation; authors may edit text and images.
+- Preserve account-deletion cascades, including both sent and received messages:
+  the other participant also loses that message history.
+- Any signed-in user may message any user, including themselves. A self-message
+  appears exactly once, on the sending side; conversation queries must not
+  duplicate self-messages.
+- DM-only images require participant access. Images also referenced publicly
+  remain public. Image caching must respect these access permissions.
+- Delete an image immediately when its last reference is removed, including
+  replacements and cascaded deletions. Check all referencing entities and
+  preserve images still used elsewhere; coordinate cleanup with related writes.
+- Allow images up to 10 MiB (10,485,760 bytes), retaining JPEG, PNG, WebP, and GIF.
+  Request-size limits must allow multipart/form overhead. Keep all other baseline
+  limits unchanged; their values are recorded in `DECISIONS.md`.
+
 
 ## Working method and Git
 
@@ -85,8 +107,8 @@ code. Keep the following declaration-documentation policy throughout the project
   constructor, destructor, method, function, property, field, event, type alias,
   and equivalent declaration, regardless of visibility. Include private members,
   local functions, test declarations, and handwritten scripts.
-- Use the language's standard documentation format, including JSDoc for
-  JavaScript. Where there is no native mechanism, place a structured documentation
+- Use the language's standard documentation format, including JSDoc/TSDoc for
+  JavaScript/TypeScript. Where there is no native mechanism, place a structured documentation
   comment immediately above the declaration.
 - Document anonymous callbacks at their definition or owning operation when
   standalone documentation is unsupported. Ordinary local variables need
