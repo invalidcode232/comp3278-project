@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PostList } from "@/components/PostList";
@@ -25,11 +26,16 @@ export default async function TopicPage({
   const threads = await listTopicPosts(pool, me?.id ?? null, topicId);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
+    <div>
+      <PageHeader title={topic.name} back="/topics" />
+      <div className="topic-intro">
         <div>
-          <h1 className="text-xl font-semibold">{topic.name}</h1>
-          <p className="muted">{topic.description}</p>
+          <span className="topic-symbol" aria-hidden="true">
+            #
+          </span>
+          <p className="muted">
+            {topic.description || `Conversations about ${topic.name}.`}
+          </p>
         </div>
         {me && (
           <Link href={`/threads/new?topic=${topic.id}`} className="btn">

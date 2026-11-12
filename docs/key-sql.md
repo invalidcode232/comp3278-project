@@ -101,3 +101,21 @@ to select the latest message. Its received branch excludes self-messages, ensuri
 a self-message appears once. Messages remain chronological within a conversation;
 indexes support both participant directions. Deleting either participant removes
 the exchanged messages through foreign keys.
+
+## User-created topic lookup and reuse
+
+```sql
+-- Literal substring search: % and _ are not wildcards. The name collation
+-- supplies case/accent-insensitive comparison. Values are bound parameters.
+SELECT id, name, description FROM topics
+WHERE LOCATE(?, name) > 0 OR ? = ''
+ORDER BY (name = ?) DESC, name LIMIT 20;
+
+-- Inside the same transaction as the post/image insertion; concurrency is
+-- resolved by the unique name key. Preserve the first display spelling.
+INSERT INTO topics (name, description) VALUES (?, '')
+ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id);
+```
+
+The driver returns the inserted or existing ID. Failure to create the post rolls
+back any new topic. Editing a post never writes its topic ID.

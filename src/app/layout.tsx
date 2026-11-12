@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
-import { listTopics } from "@/lib/queries/topics";
+import { listTopicsWithCounts } from "@/lib/queries/topics";
 import { Navigation } from "@/components/Navigation";
 import { ComposerDialog } from "@/components/PostComposer";
 import "./globals.css";
@@ -22,7 +22,10 @@ export default async function RootLayout({
   /** Route content. */
   children: ReactNode;
 }) {
-  const [me, topics] = await Promise.all([getCurrentUser(), listTopics(pool)]);
+  const [me, topics] = await Promise.all([
+    getCurrentUser(),
+    listTopicsWithCounts(pool),
+  ]);
   return (
     <html lang="en">
       <body>
@@ -31,7 +34,7 @@ export default async function RootLayout({
         </a>
         <Navigation
           handle={me?.handle ?? null}
-          composer={me ? <ComposerDialog topics={topics} /> : null}
+          composer={me ? <ComposerDialog /> : null}
         />
         <div className="app-shell">
           <main id="main-content" className="content-column">
@@ -41,16 +44,22 @@ export default async function RootLayout({
             <h2>Find your conversations</h2>
             <p className="muted">Explore what’s happening around campus.</p>
             <div className="discovery-topics">
-              {topics.map(
-                /** Seeded topics are the app's discovery mechanism. */
+              {topics.slice(0, 6).map(
+                /** Preview shared topics; the directory contains the complete searchable vocabulary. */
                 (topic) => (
                   <Link href={`/topics/${topic.id}`} key={topic.id}>
                     <strong>{topic.name}</strong>
-                    <span>{topic.description}</span>
+                    <span>
+                      {topic.post_count}{" "}
+                      {topic.post_count === 1 ? "thread" : "threads"}
+                    </span>
                   </Link>
                 ),
               )}
             </div>
+            <Link href="/topics" className="text-button discovery-all">
+              Explore all topics →
+            </Link>
             {!me && (
               <Link href="/signup" className="btn">
                 Join Threadly

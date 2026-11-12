@@ -1,3 +1,4 @@
+import { Icon } from "@/components/Icon";
 import { ConversationScroll } from "@/components/ConversationScroll";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -32,18 +33,19 @@ export default async function ConversationPage({
   return (
     <div className="conversation">
       <div className="conversation-heading">
-        <Link href="/messages" className="link text-sm">
-          ← Messages
+        <Link
+          href="/messages"
+          className="icon-button"
+          aria-label="Back to messages"
+        >
+          <Icon name="back" />
         </Link>
         <Avatar
           imageId={partner.avatar_image_id}
           name={partner.display_name}
           size={32}
         />
-        <Link
-          href={`/u/${partner.handle}`}
-          className="font-medium hover:underline"
-        >
+        <Link href={`/u/${partner.handle}`} className="conversation-person">
           {partner.display_name}{" "}
           <span className="muted">@{partner.handle}</span>
         </Link>
@@ -63,7 +65,7 @@ export default async function ConversationPage({
                 className={`flex ${mine ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[75%] rounded-lg px-3 py-2 ${mine ? "bg-neutral-900 text-white" : "bg-gray-100"}`}
+                  className={`message-bubble ${mine ? "message-mine" : "message-theirs"}`}
                 >
                   {m.body && (
                     <p className="whitespace-pre-wrap break-words">{m.body}</p>
@@ -71,7 +73,7 @@ export default async function ConversationPage({
                   {m.image_id && (
                     <img
                       src={imageUrl(m.image_id)}
-                      alt=""
+                      alt="Message attachment"
                       className="mt-1 max-h-64 rounded"
                     />
                   )}

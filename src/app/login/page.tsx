@@ -1,3 +1,4 @@
+import { PasswordField } from "@/components/PasswordField";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { loginAction } from "@/actions/auth";
@@ -8,9 +9,17 @@ import { getCurrentUser } from "@/lib/auth";
 export default async function LoginPage() {
   if (await getCurrentUser()) redirect("/");
   return (
-    <div className="mx-auto max-w-sm card">
-      <h1 className="mb-4 text-xl font-semibold">Log in</h1>
-      <ActionForm action={loginAction} submitLabel="Log in">
+    <div className="auth-card card">
+      <div className="auth-brand" aria-hidden="true">
+        @
+      </div>
+      <h1 className="mb-2 text-xl font-semibold">Log in</h1>
+      <p className="muted auth-intro">Welcome back to your conversations.</p>
+      <ActionForm
+        buttonClassName="btn auth-submit"
+        action={loginAction}
+        submitLabel="Log in"
+      >
         <div>
           <label className="label" htmlFor="email">
             Email
@@ -24,19 +33,7 @@ export default async function LoginPage() {
             autoComplete="email"
           />
         </div>
-        <div>
-          <label className="label" htmlFor="password">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            className="input"
-            autoComplete="current-password"
-          />
-        </div>
+        <PasswordField />
       </ActionForm>
       <p className="mt-4 muted">
         No account?{" "}

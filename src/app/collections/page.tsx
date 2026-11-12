@@ -29,7 +29,7 @@ export default async function CollectionsPage() {
         <ActionForm
           action={createCollectionAction}
           submitLabel="Create"
-          className="flex flex-wrap items-center gap-2"
+          className="collection-form"
           resetOnSuccess
         >
           <input
@@ -44,7 +44,7 @@ export default async function CollectionsPage() {
       </section>
 
       {collections.length === 0 ? (
-        <p className="muted">
+        <p className="empty-state">
           No collections yet. Save threads into one from a thread page.
         </p>
       ) : (
@@ -56,7 +56,7 @@ export default async function CollectionsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <Link
                     href={`/collections/${c.id}`}
-                    className="font-medium link"
+                    className="collection-name"
                   >
                     {c.name}
                   </Link>
@@ -69,7 +69,7 @@ export default async function CollectionsPage() {
                       action={renameCollectionAction}
                       submitLabel="Rename"
                       buttonClassName="btn-secondary"
-                      className="flex flex-wrap items-center gap-2"
+                      className="collection-form"
                     >
                       <input type="hidden" name="collection_id" value={c.id} />
                       <input

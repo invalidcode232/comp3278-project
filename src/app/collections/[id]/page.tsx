@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { removeFromCollectionAction } from "@/actions/collections";
@@ -26,19 +27,17 @@ export default async function CollectionPage({
   const threads = await listCollectionPosts(pool, me.id, collectionId);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <Link href="/collections" className="link text-sm">
-          ← All collections
-        </Link>
-        <h1 className="text-xl font-semibold">{collection.name}</h1>
-      </div>
+    <div>
+      <PageHeader title={collection.name} back="/collections" />
+      <p className="collection-caption muted">
+        Private collection · {threads.length} saved
+      </p>
       {threads.length === 0 ? (
-        <p className="muted">
+        <p className="empty-state">
           Nothing saved here yet. Use “Save to …” on any thread page.
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className="feed-surface">
           {threads.map(
             /** Render each saved thread with an owner-scoped remove-link action. */
             (t) => (

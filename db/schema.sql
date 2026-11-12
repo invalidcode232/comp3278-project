@@ -77,7 +77,7 @@ CREATE TABLE sessions (
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------------------------------
--- topics: fixed list (seeded), visible to everyone.
+-- topics: shared user-created labels, visible to everyone; seed rows are examples.
 -- -----------------------------------------------------------------------------
 CREATE TABLE topics (
   id           INT UNSIGNED NOT NULL AUTO_INCREMENT,

@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { listAllPosts, listFollowingPosts } from "@/lib/queries/posts";
 import { ComposerDialog } from "@/components/PostComposer";
-import { listTopics } from "@/lib/queries/topics";
 import { Avatar } from "@/components/Avatar";
 import { PostList } from "@/components/PostList";
 
@@ -19,7 +18,6 @@ export default async function FeedPage({
 }) {
   const { tab } = await searchParams;
   const me = await getCurrentUser();
-  const topics = await listTopics(pool);
   const following = tab === "following";
 
   const tabClass =
@@ -32,10 +30,18 @@ export default async function FeedPage({
         <h1>Home</h1>
       </header>
       <div className="feed-tabs">
-        <Link href="/" className={tabClass(!following)}>
+        <Link
+          href="/"
+          aria-current={!following ? "page" : undefined}
+          className={tabClass(!following)}
+        >
           For you
         </Link>
-        <Link href="/?tab=following" className={tabClass(following)}>
+        <Link
+          href="/?tab=following"
+          aria-current={following ? "page" : undefined}
+          className={tabClass(following)}
+        >
           Following
         </Link>
       </div>
@@ -46,7 +52,7 @@ export default async function FeedPage({
             name={me.display_name}
             size={36}
           />
-          <ComposerDialog topics={topics} inline />
+          <ComposerDialog inline />
         </div>
       )}
       {following && !me ? (

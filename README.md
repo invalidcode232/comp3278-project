@@ -300,3 +300,22 @@ unsupported Threads features. Dialog entrances use the measured 200ms ease-in-ou
 fade and 0.95→1 scale. Counter rolling/colour, menu and exit timings are local
 approximations, with reduced-motion support. Messages keep a scrollable history
 above a persistent composer. Clipboard sharing copies the current post URL only.
+
+### User-created topics
+
+When creating a root post, type a topic beside your handle. Matching existing
+names appear as you type (case-insensitive substring search); choose one or tag
+a new name. Arrow keys navigate, Enter selects, and Escape dismisses suggestions.
+The topic is required and cannot change after posting. Names are 1–50 Unicode
+characters with normalized whitespace. Equivalent case/accent variants share a
+topic; the first spelling is retained. New topics are saved only with a successful
+post. The five seed topics are examples, not a restriction. This change reuses
+the existing topics table and needs no database reset or schema migration.
+
+The interface uses a shared row layout across topics, profiles, conversations and
+collections. Menus dismiss on outside click or Escape; post/collection deletion
+uses an in-app confirmation with Cancel focused first. Password fields have a
+reveal control, profile uploads show a local preview, and composition fields grow
+with text. Mobile composers fit the viewport; keyboard Escape dismisses topic
+suggestions before the enclosing dialog. Unsent modal text survives ordinary
+dismissal but is cleared after route navigation/submission.

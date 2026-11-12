@@ -21,12 +21,18 @@ export function Dialog({
   const ref = useRef<HTMLDialogElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [closing, setClosing] = useState(false);
+  const [revision, setRevision] = useState(0);
   const path = usePathname();
   useEffect(
     /** Close after navigation and release timers on unmount. */
     () => {
       ref.current?.close();
       setClosing(false);
+      setRevision(
+        /** Clear a submitted composer after navigation, while preserving unsent text on ordinary dismissal. */ (
+          value,
+        ) => value + 1,
+      );
       return () => {
         if (timer.current) clearTimeout(timer.current);
       };
@@ -34,7 +40,13 @@ export function Dialog({
     [path],
   );
   /** Animate dismissal before native close returns focus to the trigger. */
-  function dismiss() {
+  function dismiss(immediate = false) {
+    if (immediate || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (timer.current) clearTimeout(timer.current);
+      ref.current?.close();
+      setClosing(false);
+      return;
+    }
     if (closing) return;
     setClosing(true);
     timer.current = setTimeout(
@@ -56,6 +68,9 @@ export function Dialog({
           () => {
             setClosing(false);
             ref.current?.showModal();
+            ref.current
+              ?.querySelector<HTMLTextAreaElement>("textarea")
+              ?.focus();
           }
         }
       >
@@ -70,7 +85,7 @@ export function Dialog({
           /** Defer native Escape dismissal until the exit completes. */
           (event) => {
             event.preventDefault();
-            dismiss();
+            dismiss(true);
           }
         }
         onClick={
@@ -82,13 +97,22 @@ export function Dialog({
       >
         <div className="dialog-panel">
           <header className="dialog-heading">
-            <button type="button" className="text-button" onClick={dismiss}>
+            <button
+              type="button"
+              className="text-button"
+              onClick={
+                /** Cancel pointer interaction uses the short exit. */ () =>
+                  dismiss()
+              }
+            >
               Cancel
             </button>
             <h2>{title}</h2>
             <span />
           </header>
-          <div className="dialog-body">{children}</div>
+          <div className="dialog-body" key={revision}>
+            {children}
+          </div>
         </div>
       </dialog>
     </>

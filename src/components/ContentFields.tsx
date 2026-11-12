@@ -21,6 +21,7 @@ export function ContentFields({
   rows?: number;
 }) {
   const fieldId = useId();
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -41,6 +42,7 @@ export function ContentFields({
         setPreview(null);
         setError("");
         setLength(defaultBody?.length ?? 0);
+        if (textRef.current) textRef.current.style.height = "";
       }
       form?.addEventListener("reset", reset);
       return () => form?.removeEventListener("reset", reset);
@@ -53,6 +55,7 @@ export function ContentFields({
         Message text
       </label>
       <textarea
+        ref={textRef}
         id={fieldId}
         name="body"
         rows={rows}
@@ -62,7 +65,11 @@ export function ContentFields({
         className="input composer-text"
         onChange={
           /** Display the count only as the user approaches the content limit. */
-          (event) => setLength(event.target.value.length)
+          (event) => {
+            setLength(event.target.value.length);
+            event.currentTarget.style.height = "auto";
+            event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 320)}px`;
+          }
         }
       />
       {length >= 4500 && (

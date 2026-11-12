@@ -28,6 +28,7 @@ test("unified conversations and visual workflows", async ({
 }, info) => {
   expect(process.env.RUN_DB_TESTS).toBe("1");
   const handle = `browser_${randomUUID().slice(0, 8)}`;
+  const topicName = `Study ${randomUUID().slice(0, 8)} Club`;
   const peerHandle = `peer_${randomUUID().slice(0, 8)}`;
   const peerContext = await browser.newContext();
   const peer = await peerContext.newPage();
@@ -111,9 +112,23 @@ test("unified conversations and visual workflows", async ({
     const dialog = page.getByRole("dialog", { name: "New thread" });
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveCSS("animation-duration", "0.2s");
+    await dialog.getByLabel("Topic", { exact: true }).fill("oUrSe");
+    await expect(
+      dialog.getByRole("option", { name: "Course Help", exact: true }),
+    ).toBeVisible();
+    await dialog.getByRole("combobox").press("ArrowDown");
+    await dialog.getByRole("combobox").press("Enter");
+    await expect(dialog.getByRole("combobox")).toHaveValue("Course Help");
+    await dialog.getByRole("combobox").fill(topicName);
+    await expect(
+      dialog.getByRole("option", { name: `${topicName} + Tag new topic` }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: info.outputPath("topic-composer-desktop.png"),
+    });
     await dialog
-      .getByLabel("Topic", { exact: true })
-      .selectOption({ index: 1 });
+      .getByRole("option", { name: `${topicName} + Tag new topic` })
+      .click();
     await dialog.getByLabel("Message text").fill("Browser root post");
     await dialog.getByRole("button", { name: "Post", exact: true }).click();
     await expect(page.locator("article .post-body").first()).toHaveText(
@@ -121,6 +136,51 @@ test("unified conversations and visual workflows", async ({
     );
     await expect(dialog).not.toBeVisible();
     const rootUrl = new URL(page.url()).pathname;
+    await expect(page.locator("article .post-topic").first()).toHaveText(
+      `› ${topicName}`,
+    );
+    const suggestions = await request.get(
+      `/api/topics?q=${encodeURIComponent(topicName.slice(3, -2).toUpperCase())}`,
+    );
+    expect(
+      (await suggestions.json()).some(
+        (item: { name: string }) => item.name === topicName,
+      ),
+    ).toBe(true);
+    await page.goto(`${rootUrl}/edit`);
+    await expect(page.getByRole("combobox")).toHaveCount(0);
+    await page.locator('input[name="post_id"]').evaluate(
+      /** Simulate a forged edit field; the server must ignore topic changes. */ (
+        element,
+      ) => {
+        const input = document.createElement("input");
+        input.name = "topic_name";
+        input.value = "Forged replacement";
+        element.parentElement!.append(input);
+      },
+    );
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.locator("article .post-topic").first()).toHaveText(
+      `› ${topicName}`,
+    );
+    await peer.goto("/threads/new");
+    await peer.getByRole("combobox").fill(topicName.toUpperCase());
+    await expect(
+      peer.getByRole("option", { name: topicName, exact: true }),
+    ).toBeVisible();
+    await peer.getByRole("combobox").press("Escape");
+    await peer
+      .locator('textarea[name="body"]:visible')
+      .fill("Same topic, different case");
+    await peer.getByRole("button", { name: "Post", exact: true }).click();
+    await expect(peer.locator("article .post-topic").first()).toHaveText(
+      `› ${topicName}`,
+    );
+    await page.goto(`/topics?q=${encodeURIComponent(topicName.toUpperCase())}`);
+    await expect(page.locator(".directory-row")).toHaveCount(1);
+    await expect(page.locator(".directory-row")).toContainText("2 threads");
+    await page.goto(rootUrl);
+
     expect((await peer.request.get(`${rootUrl}/edit`)).status()).toBe(404);
     await page.locator('summary[aria-label="Save to collection"]').click();
     await page
@@ -205,17 +265,13 @@ test("unified conversations and visual workflows", async ({
       .first()
       .locator('summary[aria-label="Post options"]')
       .click();
-    page.once(
-      "dialog",
-      /** Confirm deletion only for this disposable test post. */ async (
-        dialog,
-      ) => {
-        await dialog.accept();
-      },
-    );
     await page
       .locator("article")
       .first()
+      .getByRole("button", { name: "Delete", exact: true })
+      .click();
+    await page
+      .getByRole("dialog", { name: "Are you sure?" })
       .getByRole("button", { name: "Delete", exact: true })
       .click();
     await expect(page.locator("article.tombstone")).toHaveCount(1);
@@ -236,6 +292,10 @@ test("unified conversations and visual workflows", async ({
         "/",
         "/settings",
         "/collections",
+        "/topics",
+        "/messages",
+        `/u/${handle}`,
+        "/threads/new",
         `/messages/${handle}`,
         nestedUrl,
       ]) {
@@ -285,4 +345,95 @@ test("unified conversations and visual workflows", async ({
     await peerContext.close();
     await pool.end();
   }
+});
+
+/** Inspect all primary screens and keyboard interactions against disposable seed data without changing content. */
+test("screen polish and keyboard interactions", async ({ page }, info) => {
+  expect(process.env.RUN_DB_TESTS).toBe("1");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/login");
+  await page.getByLabel("Email", { exact: true }).fill("alice@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("password123");
+  await page.getByRole("button", { name: "Show password" }).click();
+  await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute(
+    "type",
+    "text",
+  );
+  await page.getByRole("button", { name: "Hide password" }).click();
+  await page.screenshot({ path: info.outputPath("login-desktop.png") });
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await expect(page).toHaveURL("/");
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
+    for (const [name, route] of [
+      ["topics", "/topics"],
+      ["topic", "/topics/1"],
+      ["profile", "/u/alice"],
+      ["settings", "/settings"],
+      ["collections", "/collections"],
+      ["collection", "/collections/1"],
+      ["messages", "/messages"],
+      ["conversation", "/messages/bob"],
+      ["edit", "/threads/1/edit"],
+      ["missing", "/threads/999999999"],
+    ]) {
+      await page.goto(route);
+      expect(
+        await page.evaluate(
+          /** Detect actual horizontal overflow across content and navigation. */ () =>
+            document.documentElement.scrollWidth <= innerWidth,
+        ),
+        `${name} at ${width}px`,
+      ).toBe(true);
+      if (width !== 320)
+        await page.screenshot({
+          path: info.outputPath(`${name}-${width}.png`),
+        });
+    }
+    await page.goto("/");
+    await page.locator(".feed-composer button.composer-prompt").click();
+    const composer = page.getByRole("dialog", { name: "New thread" });
+    await expect(composer.getByLabel("Message text")).toBeFocused();
+    await composer.getByRole("combobox").fill("oto");
+    await expect(
+      composer.getByRole("option", { name: "Photography", exact: true }),
+    ).toBeVisible();
+    await expect(
+      composer.getByRole("option", { name: "Photography", exact: true }),
+    ).toBeInViewport();
+    expect(
+      await composer.locator(".topic-popover").evaluate(
+        /** Popovers stay fully inside even the narrowest tested viewport. */ (
+          element,
+        ) => {
+          const rect = element.getBoundingClientRect();
+          return rect.left >= 0 && rect.right <= innerWidth;
+        },
+      ),
+    ).toBe(true);
+    await page.screenshot({ path: info.outputPath(`composer-${width}.png`) });
+    await composer.getByRole("combobox").press("Escape");
+    await expect(composer).toBeVisible();
+    await expect(composer.getByRole("listbox")).toHaveCount(0);
+    await composer.getByRole("combobox").press("Escape");
+    await expect(composer).not.toBeVisible();
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/threads/1");
+  const root = page.locator("article").first();
+  await root.locator('summary[aria-label="Post options"]').click();
+  await root.getByRole("button", { name: "Delete", exact: true }).click();
+  const confirmation = page.getByRole("dialog", { name: "Are you sure?" });
+  await expect(
+    confirmation.getByRole("button", { name: "Cancel" }),
+  ).toBeFocused();
+  await expect(confirmation).toHaveCSS("opacity", "1");
+  await expect(confirmation).toBeInViewport();
+  await page.screenshot({ path: info.outputPath("delete-confirmation.png") });
+  await confirmation.getByRole("button", { name: "Cancel" }).click();
+  await expect(root.locator(".post-body")).toContainText(
+    "normalising a schema",
+  );
+  await page.keyboard.press("Escape");
+  await expect(root.locator("details").first()).not.toHaveAttribute("open", "");
 });

@@ -54,3 +54,8 @@ dot -Kneato -Tpng docs/er-diagram.dot -o docs/er-diagram.png
 
 Pinned positions make role labels and participation edges predictable. Regenerate
 both formats whenever relationships or attributes change, then inspect the render.
+
+Topic names can now be introduced by any signed-in user while creating a root
+post. This changes the creation workflow, not the ER structure: TOPIC remains
+shared vocabulary, and BELONGS_TO still links each root to exactly one fixed
+topic. No creator/ownership relationship is introduced.

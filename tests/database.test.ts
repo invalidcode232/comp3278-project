@@ -1,3 +1,5 @@
+import { findOrCreateTopic, searchTopics } from "../src/lib/queries/topics";
+import { validateTopicName } from "../src/lib/topic-name";
 import {
   createPost,
   deletePost,
@@ -55,6 +57,52 @@ test("database-backed policy boundaries", async (t) => {
     ],
   );
   try {
+    /** User-created vocabulary merges equivalent names, searches literal substrings, and rolls back with posts. */
+    await t.test(
+      "user-created topics: identity, search, validation and rollback",
+      async () => {
+        const name = `Topic ${randomUUID().slice(0, 8)} 100%_Study`;
+        try {
+          const ids = await Promise.all([
+            findOrCreateTopic(pool, name),
+            findOrCreateTopic(pool, name.toUpperCase()),
+          ]);
+          assert.equal(ids[0], ids[1]);
+          assert.equal(
+            (await searchTopics(pool, name.slice(6, 13).toUpperCase()))[0]?.id,
+            ids[0],
+          );
+          assert.ok(
+            (await searchTopics(pool, "%_Study")).some(
+              /** Literal wildcard characters are ordinary label text. */ (
+                row,
+              ) => row.id === ids[0],
+            ),
+          );
+          assert.equal(validateTopicName("  Study   group  "), "Study group");
+          assert.throws(() => validateTopicName(" "));
+          assert.throws(() => validateTopicName("a".repeat(51)));
+          assert.throws(() => validateTopicName("a\u0000b"));
+          assert.equal(validateTopicName("界".repeat(50)).length, 50);
+          await assert.rejects(
+            withImageTransaction(async (db) => {
+              await findOrCreateTopic(db, `${name} rollback`);
+              throw new Error("Simulated post failure");
+            }),
+            /Simulated post failure/,
+          );
+          assert.equal(
+            (await searchTopics(pool, `${name} rollback`)).length,
+            0,
+          );
+        } finally {
+          await pool.execute("DELETE FROM topics WHERE name IN (?, ?)", [
+            name,
+            `${name} rollback`,
+          ]);
+        }
+      },
+    );
     /** Check fresh, due, simultaneous, expired, and revoked session activity. */
     await t.test(
       "session renewal is daily, atomic, and never revives expiry",

@@ -1,3 +1,4 @@
+import { Menu } from "@/components/Menu";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -59,40 +60,35 @@ export default async function ThreadPage({
           viewer={me}
           extra={
             me && !post.parent_id && !post.deleted_at ? (
-              <details className="action-menu save-menu">
-                <summary aria-label="Save to collection">
-                  <Icon name="bookmark" />
-                </summary>
-                <div className="menu-panel">
-                  <p className="muted">Private collections</p>
-                  {collections.map(
-                    /** Each save mutation is scoped to the signed-in collection owner. */
-                    (c) => (
-                      <form
-                        key={c.id}
-                        action={
-                          c.has_post
-                            ? removeFromCollectionAction
-                            : saveToCollectionAction
-                        }
-                      >
-                        <input
-                          type="hidden"
-                          name="collection_id"
-                          value={c.id}
-                        />
-                        <input type="hidden" name="post_id" value={post.id} />
-                        <button>
-                          {c.has_post
-                            ? `✓ In “${c.name}” (remove)`
-                            : `+ Save to “${c.name}”`}
-                        </button>
-                      </form>
-                    ),
-                  )}
-                  <Link href="/collections">Manage collections</Link>
-                </div>
-              </details>
+              <Menu
+                label="Save to collection"
+                trigger={<Icon name="bookmark" />}
+                className="save-menu"
+              >
+                <p className="muted">Private collections</p>
+                {collections.map(
+                  /** Each save mutation is scoped to the signed-in collection owner. */
+                  (c) => (
+                    <form
+                      key={c.id}
+                      action={
+                        c.has_post
+                          ? removeFromCollectionAction
+                          : saveToCollectionAction
+                      }
+                    >
+                      <input type="hidden" name="collection_id" value={c.id} />
+                      <input type="hidden" name="post_id" value={post.id} />
+                      <button>
+                        {c.has_post
+                          ? `✓ In “${c.name}” (remove)`
+                          : `+ Save to “${c.name}”`}
+                      </button>
+                    </form>
+                  ),
+                )}
+                <Link href="/collections">Manage collections</Link>
+              </Menu>
             ) : undefined
           }
         />

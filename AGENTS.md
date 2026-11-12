@@ -48,7 +48,7 @@ existing data model unless a change is requested. The user-confirmed decisions i
   is outside the current plan.
 
 Keep the current feature scope: accounts and profiles, threads, comments, likes,
-follows, collections, seeded topics, images, and direct messages. Do not silently
+follows, collections, user-created topics, images, and direct messages. Do not silently
 drop features or expand scope. Retain the baseline's user UUIDs, numeric entity
 IDs, and conversations derived from message pairs. Select compatible supported
 dependencies and commit the lockfile.
@@ -60,8 +60,10 @@ dependencies and commit the lockfile.
 - Sessions expire after 30 days of inactivity. Authenticated activity renews both
   the database expiry and cookie lifetime at most once daily. Preserve logout of
   the current session and invalidation of all sessions on account deletion.
-- Collections remain private to their owner. Thread topics remain fixed after
-  creation; authors may edit text and images.
+- Collections remain private to their owner. Users enter an existing or new topic
+  when creating a root post, with case-insensitive literal substring suggestions.
+  Topics remain fixed after creation; authors may edit text and images. New topics
+  are created atomically with posts; equivalent labels reuse the unique topic row.
 - Root posts and replies share `posts`: roots have NULL parent, replies reference
   an existing post. Parent and root topic are immutable; only roots store topics.
   Erase deleted posts into anonymous placeholders, preserving descendants. Account

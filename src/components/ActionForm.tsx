@@ -71,10 +71,12 @@ export function ActionForm({
     <form
       ref={ref}
       className={className}
+      aria-busy={pending}
       onSubmit={
         /** Prevent the native submit, check file sizes, and dispatch the Server Action. */
         (e) => {
           e.preventDefault();
+          if (pending) return;
           // Check file sizes before uploading, so an oversized file never hits
           // the Server Action body limit. The server checks again (upload.ts).
           const inputs =
@@ -104,12 +106,12 @@ export function ActionForm({
     >
       {children}
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="form-feedback form-error">
           {error}
         </p>
       )}
       {!error && state?.ok && (
-        <p role="status" className="text-sm text-green-700">
+        <p role="status" className="form-feedback form-success">
           {state.ok}
         </p>
       )}
@@ -119,7 +121,15 @@ export function ActionForm({
             ? "Sending…"
             : submitLabel === "Post" || submitLabel === "Reply"
               ? "Posting…"
-              : "Saving…"
+              : submitLabel === "Log in"
+                ? "Logging in…"
+                : submitLabel === "Sign up"
+                  ? "Creating account…"
+                  : submitLabel.startsWith("Delete")
+                    ? "Deleting…"
+                    : submitLabel === "Create"
+                      ? "Creating…"
+                      : "Saving…"
           : submitLabel}
       </button>
     </form>

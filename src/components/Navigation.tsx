@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { logoutAction } from "@/actions/auth";
+import { Menu } from "./Menu";
 import { Icon, type IconName } from "./Icon";
 
 /** Responsive navigation rail/bottom bar with route-aware selected states. */
@@ -91,27 +92,26 @@ export function Navigation({
             </Link>
           )}
         </div>
-        <details className="action-menu nav-menu">
-          <summary aria-label="Account menu">
-            <Icon name="more" />
-          </summary>
-          <div className="menu-panel">
-            {handle ? (
-              <>
-                <Link href="/settings">Settings</Link>
-                <Link href="/collections">Collections</Link>
-                <form action={logoutAction}>
-                  <button>Log out</button>
-                </form>
-              </>
-            ) : (
-              <>
-                <Link href="/login">Log in</Link>
-                <Link href="/signup">Sign up</Link>
-              </>
-            )}
-          </div>
-        </details>
+        <Menu
+          label="Account menu"
+          trigger={<Icon name="more" />}
+          className="nav-menu"
+        >
+          {handle ? (
+            <>
+              <Link href="/settings">Settings</Link>
+              <Link href="/collections">Collections</Link>
+              <form action={logoutAction}>
+                <button>Log out</button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link href="/login">Log in</Link>
+              <Link href="/signup">Sign up</Link>
+            </>
+          )}
+        </Menu>
       </nav>
     </>
   );

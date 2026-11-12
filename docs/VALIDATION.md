@@ -147,3 +147,31 @@ Runtime feature acceptance remains pending until the corresponding checks below.
   and migrated its existing database successfully without resetting it: all
   61 posts, 125 likes and 13 saved links preserved. Restarted the production app
   at http://127.0.0.1:3000 and verified a successful home-page response.
+
+## 12 November 2026 — user-created topics and screen polish
+
+- Inspected the live Threads composer in Safari Personal: inline author/topic
+  input, anchored scrollable suggestions, and “+ Tag new topic” for unmatched
+  labels. Cleared the inspection text and closed the composer without posting.
+- Topic creation reuses the existing table and unique name key; no migration or
+  database reset is required. The five example topics remain valid. Updated the
+  working agreement, decisions, schema notes, representative SQL and ER mapping.
+  Entity relationships and rendered diagrams are unchanged by this workflow.
+- Fresh disposable MySQL schema/seed pass. All eight database tests pass,
+  including concurrent case-variant topic reuse, literal substring matching,
+  whitespace/length/control-character validation, and rollback after failed post
+  creation. Existing session, image, ownership and nested-post tests still pass.
+- Production build/type checking pass. Both browser workflows pass: custom topic
+  creation, case-insensitive reuse, directory filtering, unchanged topics after
+  forged edit input, keyboard suggestions, nested replies, deletion, privacy,
+  uploads, and the existing counter/rollback checks.
+- Visually inspected feed, composer, topics, profile, collections, messages,
+  settings, authentication and confirmation views. Screen checks cover desktop,
+  390px and 320px widths, including all primary routes and no horizontal overflow.
+  Added checks for suggestion-panel bounds, initial composer/confirmation focus,
+  nested Escape dismissal, password reveal and cancellation without deletion.
+- Visual inspection caught and fixed browser-default dialog width clipping and
+  suggestion overflow at narrow widths, missing topic/count separation, and
+  confirmation positioning. Avatar uploads now use a styled chooser with preview.
+- All mutations during validation used disposable synthetic accounts/seed data
+  in a separate MySQL container; the existing local user database was not reset.

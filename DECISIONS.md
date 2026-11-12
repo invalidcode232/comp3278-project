@@ -105,6 +105,25 @@ completion from approval alone.
 
 The unified model, responsive visual refactor, attachment previews, persistent DM
 composer, accessible modal focus handling and motion are implemented. Reference
-matching adapts the existing project scope: discovery shows seeded topics, saves
+matching adapts the existing project scope: discovery shows user-created topics, saves
 are private/root-only, and there are no nonfunctional repost/activity controls.
 Validation and the local migration outcome are recorded in `docs/VALIDATION.md`.
+
+## 12 November 2026 — user-created topics
+
+The user replaced the predefined topic list with user-created labels. Each root
+still has exactly one topic, fixed after creation; replies inherit their root’s
+topic. During creation, an inline field offers existing labels containing the
+entered substring, case-insensitively, and a “Tag new topic” choice.
+
+Implementation choices: normalize NFC, trim/collapse whitespace, allow 1–50 Unicode
+code points, and reject control characters. The existing MySQL unique name key
+uses case/accent-insensitive comparison, so equivalent labels reuse the first
+spelling. Percent/underscore characters are literal search text. New topics have
+an empty optional description and are shared vocabulary, without owner controls.
+Topic creation commits or rolls back with the post. Existing demo topics remain
+valid examples, not an exhaustive list. No physical schema migration is needed.
+
+Safari Personal inspection confirmed the inline author/topic layout, anchored
+scrollable suggestions, and “+ Tag new topic” empty-match option. Communities,
+member counts and unrelated Threads features are outside this app’s scope.

@@ -25,7 +25,7 @@ export interface PostView {
   display_name: string | null;
   /** Shared avatar image ID, or null for the initial fallback. */
   avatar_image_id: number | null;
-  /** Numeric key of the fixed seeded topic. */
+  /** Numeric key of the shared topic fixed on this root. */
   topic_id: number | null;
   /** Topic label displayed with the thread. */
   topic_name: string | null;
@@ -100,7 +100,7 @@ export async function listFollowingPosts(
 /** Threads in one topic; served by the (topic_id, created_at) index.
  * @param db Pool or transaction connection used for all queries in this operation.
  * @param viewerId Authenticated viewer UUID, or null for public access when permitted.
- * @param topicId Numeric identifier of the seeded topic.
+ * @param topicId Numeric identifier of the shared topic.
  */
 export async function listTopicPosts(
   db: Db,

@@ -1,10 +1,10 @@
+import { PageHeader } from "@/components/PageHeader";
 import { deleteAccountAction, updateProfileAction } from "@/actions/users";
 import { ActionForm } from "@/components/ActionForm";
-import { Avatar } from "@/components/Avatar";
+import { AvatarEditor } from "@/components/AvatarEditor";
 import { requireUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { getUserById } from "@/lib/queries/users";
-import { ACCEPT_IMAGES } from "@/lib/limits";
 
 /** Require login and render profile editing and account deletion for the current user. */
 export default async function SettingsPage() {
@@ -13,9 +13,11 @@ export default async function SettingsPage() {
   if (!user) return null;
 
   return (
-    <div className="space-y-6">
-      <section className="card">
-        <h1 className="mb-4 text-xl font-semibold">Edit profile</h1>
+    <div className="settings-page">
+      <PageHeader title="Settings" back={`/u/${user.handle}`} />
+      <section className="card settings-section">
+        <h2 className="mb-1 text-lg font-semibold">Edit profile</h2>
+        <p className="muted mb-5">Make it easy for people to recognize you.</p>
         <ActionForm action={updateProfileAction} submitLabel="Save profile">
           <div>
             <label className="label" htmlFor="display_name">
@@ -62,30 +64,10 @@ export default async function SettingsPage() {
           </div>
           <div>
             <span className="label">Avatar</span>
-            <div className="avatar-editor">
-              <Avatar
-                imageId={user.avatar_image_id}
-                name={user.display_name}
-                size={64}
-              />
-              <input
-                type="file"
-                name="avatar"
-                accept={ACCEPT_IMAGES}
-                className="min-w-0 max-w-full text-sm"
-                aria-label="Avatar image"
-              />
-              {user.avatar_image_id && (
-                <label className="text-sm">
-                  <input
-                    type="checkbox"
-                    name="remove_avatar"
-                    className="mr-1"
-                  />
-                  Remove avatar
-                </label>
-              )}
-            </div>
+            <AvatarEditor
+              imageId={user.avatar_image_id}
+              name={user.display_name}
+            />
           </div>
           <p className="muted">Email: {user.email}</p>
         </ActionForm>

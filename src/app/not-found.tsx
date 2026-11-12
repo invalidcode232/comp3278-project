@@ -1,16 +1,16 @@
 import Link from "next/link";
+import { Icon } from "@/components/Icon";
 
-/** Render the missing-resource page with a link back to the feed. */
+/** Consistent missing/private-resource page without disclosing whether someone else's record exists. */
 export default function NotFound() {
   return (
-    <div className="card text-center">
-      <h1 className="text-lg font-semibold">Not found</h1>
-      <p className="muted mt-1">
-        That page doesn&apos;t exist, or it was deleted.
-      </p>
-      <Link href="/" className="link mt-3 inline-block">
-        Back to the feed
+    <section className="empty-state card missing-page">
+      <Icon name="search" />
+      <h1>This page isn’t available</h1>
+      <p>The link may have changed, or you may not have access to this page.</p>
+      <Link href="/" className="btn-secondary">
+        Back to home
       </Link>
-    </div>
+    </section>
   );
 }

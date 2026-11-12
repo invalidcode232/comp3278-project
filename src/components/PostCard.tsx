@@ -11,6 +11,7 @@ import { ConfirmButton } from "./ConfirmButton";
 import { AnimatedCount } from "./AnimatedCount";
 import { LikeButton } from "./LikeButton";
 import { Icon } from "./Icon";
+import { Menu } from "./Menu";
 import { ShareButton } from "./ShareButton";
 
 /** Render any root/reply using a consistent row. Tombstones reveal no original identity or content. */
@@ -65,20 +66,15 @@ export function PostCard({
             <Stamp at={post.created_at} edited={post.edited} />
           </Link>
           {viewer?.id === post.author_id && (
-            <details className="action-menu">
-              <summary aria-label="Post options">
-                <Icon name="more" />
-              </summary>
-              <div className="menu-panel">
-                <Link href={`/threads/${post.id}/edit`}>Edit</Link>
-                <form action={deletePostAction}>
-                  <input type="hidden" name="post_id" value={post.id} />
-                  <ConfirmButton message="Delete this post? Its replies will remain under a Deleted post placeholder.">
-                    Delete
-                  </ConfirmButton>
-                </form>
-              </div>
-            </details>
+            <Menu label="Post options" trigger={<Icon name="more" />}>
+              <Link href={`/threads/${post.id}/edit`}>Edit</Link>
+              <form action={deletePostAction}>
+                <input type="hidden" name="post_id" value={post.id} />
+                <ConfirmButton message="Delete this post? Its replies will remain under a Deleted post placeholder.">
+                  Delete
+                </ConfirmButton>
+              </form>
+            </Menu>
           )}
         </header>
         {post.body && <p className="post-body">{post.body}</p>}

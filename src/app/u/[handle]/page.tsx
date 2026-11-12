@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { followAction, unfollowAction } from "@/actions/follows";
@@ -6,7 +7,6 @@ import { Avatar } from "@/components/Avatar";
 import { PostList } from "@/components/PostList";
 import { getCurrentUser } from "@/lib/auth";
 import { pool } from "@/lib/db";
-import { formatTime } from "@/lib/format";
 import { getFollowCounts, isFollowing } from "@/lib/queries/follows";
 import { listUserPosts } from "@/lib/queries/posts";
 import { getUserByHandle } from "@/lib/queries/users";
@@ -36,18 +36,17 @@ export default async function ProfilePage({
   const isMe = me?.id === user.id;
 
   return (
-    <div className="space-y-6">
-      <section className="card flex flex-wrap items-start gap-4">
+    <div>
+      <PageHeader title="Profile" />
+      <section className="profile-header">
         <Avatar
           imageId={user.avatar_image_id}
           name={user.display_name}
           size={80}
         />
-        <div className="min-w-0 flex-1 space-y-1">
-          <h1 className="text-xl font-semibold">{user.display_name}</h1>
-          <p className="muted">
-            @{user.handle} · joined {formatTime(user.created_at)}
-          </p>
+        <div className="profile-identity">
+          <h2 className="profile-name">{user.display_name}</h2>
+          <p className="muted">@{user.handle}</p>
           {user.bio && <p className="whitespace-pre-wrap">{user.bio}</p>}
           <p className="text-sm">
             <strong>
@@ -60,7 +59,7 @@ export default async function ProfilePage({
             following
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="profile-actions">
           {isMe && (
             <Link href="/settings" className="btn-secondary">
               Edit profile
@@ -87,8 +86,8 @@ export default async function ProfilePage({
         </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="font-semibold">Threads by @{user.handle}</h2>
+      <section>
+        <h2 className="profile-tab">Threads</h2>
         <PostList threads={threads} viewer={me} empty="No threads yet." />
       </section>
     </div>

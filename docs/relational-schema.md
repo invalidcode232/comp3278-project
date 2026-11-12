@@ -86,3 +86,12 @@ like and saved-link counts before dropping obsolete storage. Old root URLs remai
 old comment fragment IDs are not retained. MySQL DDL is not transactional: stop
 the app and take a backup first. On a failed partial migration restore that backup
 before retrying. Fresh installations use `db/schema.sql` directly.
+
+### Topic vocabulary
+
+`topics` is shared user-created vocabulary. Its existing unique `name` uses
+`utf8mb4_0900_ai_ci` (case/accent insensitive); application normalization trims
+and collapses whitespace and normalizes NFC. New rows use an empty description.
+The 50-character name limit is retained. A root’s topic ID remains immutable;
+replies still store NULL. The topic upsert and post insert share a transaction.
+Typing/searching alone writes nothing. There is no topic-owner relationship.

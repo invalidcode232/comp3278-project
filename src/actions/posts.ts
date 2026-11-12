@@ -1,5 +1,7 @@
 "use server";
 
+import { validateTopicName } from "@/lib/topic-name";
+import { findOrCreateTopic } from "@/lib/queries/topics";
 import { withImageTransaction } from "@/lib/image-lifecycle";
 
 import { revalidatePath } from "next/cache";
@@ -35,14 +37,16 @@ export async function createPostAction(
     const parentId = formData.get("parent_id")
       ? id(formData.get("parent_id"))
       : null;
-    const topicId = parentId === null ? id(formData.get("topic_id")) : null;
+    const topicName =
+      parentId === null
+        ? validateTopicName(String(formData.get("topic_name") ?? ""))
+        : null;
     const body = optionalText(formData, "body");
     const file = getUploadedFile(formData);
     if (!body && !file)
       throw new InputError("A thread needs text, an image, or both.");
 
-    // One transaction: the image row and the thread row are saved together,
-    // or neither is (e.g. if the topic id is invalid the image insert is rolled back).
+    // The topic, image and post commit together. Failed uploads roll back newly created topics.
     threadId = await withImageTransaction(
       /** Create the optional BLOB and thread together; return the new thread ID. */
       async (conn) => {
@@ -53,6 +57,8 @@ export async function createPostAction(
               "That post was deleted. Reply to a surviving post instead.",
             );
         }
+        const topicId =
+          topicName === null ? null : await findOrCreateTopic(conn, topicName);
         const imageId = file ? await saveImage(conn, file) : null;
         return createPost(conn, {
           authorId: me.id,
